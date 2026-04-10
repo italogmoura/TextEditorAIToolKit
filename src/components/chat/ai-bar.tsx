@@ -87,7 +87,7 @@ export function AiBar({
     if (messages.length > 0 || isLoading) setExpanded(true);
   }, [messages.length, isLoading]);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!value.trim() || isLoading) return;
 
     if (value.startsWith("/") && onSlashCommand) {
@@ -95,11 +95,40 @@ export function AiBar({
       if (cmd) { onSlashCommand(cmd.command); setValue(""); return; }
     }
 
-    const parts: string[] = [];
-    if (quotedText) parts.push(`<texto_selecionado>\n${quotedText}\n</texto_selecionado>`);
-    if (attachedFiles.length > 0) parts.push(`[Arquivos de referência: ${attachedFiles.map((f) => f.name).join(", ")}]`);
-    parts.push(value.trim());
-    sendMessage(processNumber, parts.join("\n\n"), gdocsId);
+    // Build the full prompt (sent to API) with context
+    const fullParts: string[] = [];
+    if (quotedText) fullParts.push(`<texto_selecionado>\n${quotedText}\n</texto_selecionado>`);
+    if (attachedFiles.length > 0) fullParts.push(`[Arquivos de referência: ${attachedFiles.map((f) => f.name).join(", ")}]`);
+    fullParts.push(value.trim());
+
+    // Build display message (shown in chat) — compact
+    const displayParts: string[] = [];
+    if (quotedText) {
+      const preview = quotedText.length > 80 ? quotedText.substring(0, 80) + "…" : quotedText;
+      displayParts.push(`📎 "${preview}"`);
+    }
+    if (attachedFiles.length > 0) displayParts.push(`📁 ${attachedFiles.map((f) => f.name).join(", ")}`);
+    displayParts.push(value.trim());
+
+    // Add compact display message to chat, but send full prompt to API
+    const { addMessage } = useChatStore.getState();
+    addMessage({ role: "user", content: displayParts.join("\n") });
+
+    // Send full prompt directly to API (bypass sendMessage which adds user msg)
+    useChatStore.setState({ isLoading: true });
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ processNumber, message: fullParts.join("\n\n"), gdocsId }),
+      });
+      const data = await res.json();
+      addMessage({ role: "assistant", content: data.response ?? data.error ?? "Sem resposta" });
+    } catch {
+      addMessage({ role: "system", content: "Erro ao comunicar com o servidor" });
+    } finally {
+      useChatStore.setState({ isLoading: false });
+    }
     setValue("");
     setAttachedFiles([]);
     setQuotedText(null);
