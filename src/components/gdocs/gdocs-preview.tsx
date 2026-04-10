@@ -38,10 +38,10 @@ export function GDocsPreview({
         onError={() => setIframeError(true)}
         allow="clipboard-read; clipboard-write"
       />
-      {/* Cover the Google Docs floating action buttons (comment/emoji/suggest) */}
+      {/* Cover the Google Docs floating action buttons (comment/emoji/suggest) on the right edge */}
       <div
-        className="absolute top-0 right-0 w-12 pointer-events-none"
-        style={{ height: "100%", background: "linear-gradient(to left, rgba(255,255,255,0.97) 70%, transparent)" }}
+        className="absolute top-0 right-0 z-10"
+        style={{ width: "56px", height: "100%", background: "white" }}
       />
     </div>
   );

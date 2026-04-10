@@ -32,15 +32,38 @@ export function AiBar({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { messages, isLoading, sendMessage } = useChatStore();
 
-  // Detect paste of text (from Google Docs selection)
+  // Auto-detect Ctrl+C / Cmd+C anywhere and read clipboard
+  useEffect(() => {
+    async function handleCopy() {
+      // Small delay to let the clipboard populate
+      await new Promise((r) => setTimeout(r, 100));
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim().length > 10) {
+          setQuotedText(text.trim());
+        }
+      } catch {
+        // Permission denied or clipboard empty — ignore silently
+      }
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "c") {
+        handleCopy();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  // Also detect paste directly in the textarea
   function handlePaste(e: React.ClipboardEvent) {
     const pasted = e.clipboardData.getData("text/plain").trim();
-    // Only treat as quote if it's multi-word and the textarea is empty or has a command
-    if (pasted && pasted.length > 20 && (!value || value.startsWith("/"))) {
+    if (pasted && pasted.length > 10 && !value) {
       e.preventDefault();
       setQuotedText(pasted);
       setFocused(true);
-      textareaRef.current?.focus();
     }
   }
 
