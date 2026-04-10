@@ -13,9 +13,10 @@ interface DocSidebarProps {
   onDragStart?: (doc: ProcessDocument, e: React.DragEvent) => void;
 }
 
+type Section = "toc" | "files";
+
 export function DocSidebar({ documents, onSelectDocument, onDragStart }: DocSidebarProps) {
-  const [tocOpen, setTocOpen] = useState(true);
-  const [filesOpen, setFilesOpen] = useState(true);
+  const [openSection, setOpenSection] = useState<Section | null>(null);
 
   const pdfs = documents.filter((d) => d.type === "pdf");
   const pecas = documents.filter((d) => d.type === "peca");
@@ -23,10 +24,8 @@ export function DocSidebar({ documents, onSelectDocument, onDragStart }: DocSide
   const notes = documents.filter((d) => d.type === "notes");
   const allFiles = [...indices, ...pdfs, ...pecas, ...notes];
 
-  function formatBytes(bytes: number): string {
-    if (bytes < 1024) return `${bytes}B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  function toggle(section: Section) {
+    setOpenSection((prev) => (prev === section ? null : section));
   }
 
   function getIcon(doc: ProcessDocument) {
@@ -42,57 +41,64 @@ export function DocSidebar({ documents, onSelectDocument, onDragStart }: DocSide
   return (
     <div
       className="h-full flex flex-col border-r shrink-0 overflow-hidden"
-      style={{ width: "200px", background: "rgba(250,250,250,0.8)" }}
+      style={{ width: openSection ? "200px" : "auto", background: "rgba(250,250,250,0.8)" }}
     >
-      <ScrollArea className="flex-1">
-        <div className="py-2">
-          {/* Índice do documento (Table of Contents placeholder) */}
-          <button
-            className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase text-zinc-400 hover:text-zinc-600"
-            onClick={() => setTocOpen(!tocOpen)}
-          >
-            {tocOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            Índice do Documento
-          </button>
-          {tocOpen && (
-            <div className="px-3 py-1 text-[11px] text-zinc-400 italic">
-              Navegue pelo sumário no Google Docs
-            </div>
-          )}
+      {/* Header: Índice */}
+      <button
+        className={`w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase border-b shrink-0 transition-colors ${
+          openSection === "toc" ? "text-zinc-700 bg-zinc-100" : "text-zinc-400 hover:text-zinc-600"
+        }`}
+        onClick={() => toggle("toc")}
+      >
+        {openSection === "toc" ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        Índice
+      </button>
 
-          {/* Arquivos do processo */}
-          <button
-            className="w-full flex items-center gap-1.5 px-3 py-1.5 mt-2 text-[10px] font-semibold uppercase text-zinc-400 hover:text-zinc-600"
-            onClick={() => setFilesOpen(!filesOpen)}
-          >
-            {filesOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            Arquivos do Processo
-          </button>
-          {filesOpen && (
-            <div className="space-y-0.5 px-1">
-              {allFiles.map((doc) => (
-                <div
-                  key={doc.name}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData("text/plain", `[${doc.name}]`);
-                    e.dataTransfer.setData("application/x-doc-path", doc.path);
-                    e.dataTransfer.setData("application/x-doc-name", doc.name);
-                    onDragStart?.(doc, e);
-                  }}
-                  onClick={() => onSelectDocument(doc)}
-                  className="flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer hover:bg-zinc-100 group"
-                  title={`${doc.name}\n${formatBytes(doc.sizeBytes)}\nArraste para o input da IA`}
-                >
-                  <GripVertical className="h-2.5 w-2.5 text-zinc-300 opacity-0 group-hover:opacity-100 shrink-0 cursor-grab" />
-                  {getIcon(doc)}
-                  <span className="text-[11px] text-zinc-600 truncate">{doc.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </ScrollArea>
+      {/* Header: Arquivos */}
+      <button
+        className={`w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase border-b shrink-0 transition-colors ${
+          openSection === "files" ? "text-zinc-700 bg-zinc-100" : "text-zinc-400 hover:text-zinc-600"
+        }`}
+        onClick={() => toggle("files")}
+      >
+        {openSection === "files" ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        Arquivos
+      </button>
+
+      {/* Expanded content — below both headers */}
+      {openSection === "toc" && (
+        <ScrollArea className="flex-1">
+          <div className="px-3 py-2 text-[11px] text-zinc-400 italic">
+            Navegue pelo sumário no Google Docs
+          </div>
+        </ScrollArea>
+      )}
+
+      {openSection === "files" && (
+        <ScrollArea className="flex-1">
+          <div className="space-y-0.5 px-1 py-1">
+            {allFiles.map((doc) => (
+              <div
+                key={doc.name}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("text/plain", `[${doc.name}]`);
+                  e.dataTransfer.setData("application/x-doc-path", doc.path);
+                  e.dataTransfer.setData("application/x-doc-name", doc.name);
+                  onDragStart?.(doc, e);
+                }}
+                onClick={() => onSelectDocument(doc)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer hover:bg-zinc-100 group"
+                title="Arraste para o input da IA"
+              >
+                <GripVertical className="h-2.5 w-2.5 text-zinc-300 opacity-0 group-hover:opacity-100 shrink-0 cursor-grab" />
+                {getIcon(doc)}
+                <span className="text-[11px] text-zinc-600 truncate">{doc.name}</span>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      )}
     </div>
   );
 }
