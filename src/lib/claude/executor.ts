@@ -18,7 +18,12 @@ export async function runClaude(params: {
 }): Promise<ClaudeResult> {
   const cwd = params.cwd ?? CLAUDE_DOCS_PATH;
 
-  const args = ["--print", "--output-format", "text"];
+  const args = [
+    "--print",
+    "--output-format", "text",
+    "--allowedTools", "Edit", "Write", "Read", "Bash", "Glob", "Grep",
+    "WebFetch", "WebSearch", "Agent",
+  ];
   if (params.model) {
     args.push("--model", params.model);
   }

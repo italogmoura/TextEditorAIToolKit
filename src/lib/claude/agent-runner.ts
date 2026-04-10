@@ -62,7 +62,12 @@ export async function executeAgent(config: AgentRunConfig): Promise<AgentRunResu
     const cwd = path.join(CLAUDE_DOCS_PATH, "processos", config.processNumber);
 
     // Build CLI args
-    const args = ["--print", "--output-format", "text"];
+    const args = [
+      "--print",
+      "--output-format", "text",
+      "--allowedTools", "Edit", "Write", "Read", "Bash", "Glob", "Grep",
+      "WebFetch", "WebSearch", "Agent",
+    ];
 
     // Use agent if it's a known agent name
     const knownAgents = [
