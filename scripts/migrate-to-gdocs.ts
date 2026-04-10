@@ -10,7 +10,7 @@
  *     4. Registra gdocsId em .gdocs-meta.json
  *     5. Renomeia .md para .md.migrated
  *
- * Uso: npx tsx scripts/migrate-to-gdocs.ts [--dry-run]
+ * Uso: pnpm tsx scripts/migrate-to-gdocs.ts [--dry-run]
  */
 
 import fs from "fs";

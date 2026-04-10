@@ -9,22 +9,22 @@ TextEditor AI ToolKit — interface web para workflow jurídico com IA. Permite 
 ## Comandos
 
 ```bash
-npm run dev          # Inicia dev server (tsx watch server.ts) — porta 3000
-npm run build        # Build Next.js para produção
-npm run lint         # ESLint via Next.js
-npm run test         # Vitest (todos os testes unitários)
-npm run test:unit    # Apenas testes unitários (filesystem, prompt-builder, db)
-npm run test:gdocs   # Testes do client Google Docs (requer service account)
-npm run test:smoke   # Smoke tests (faz build primeiro)
-npm run test:all     # Build + todos os testes
+pnpm dev             # Inicia dev server (tsx watch server.ts) — porta 3000
+pnpm build           # Build Next.js para produção
+pnpm lint            # ESLint via Next.js
+pnpm test            # Vitest (todos os testes unitários)
+pnpm test:unit       # Apenas testes unitários (filesystem, prompt-builder, db)
+pnpm test:gdocs      # Testes do client Google Docs (requer service account)
+pnpm test:smoke      # Smoke tests (faz build primeiro)
+pnpm test:all        # Build + todos os testes
 ```
 
-Rodar um teste específico: `npx vitest run tests/nome.test.ts`
+Rodar um teste específico: `pnpm vitest run tests/nome.test.ts`
 
 ## Arquitetura
 
 ### Custom Server (server.ts)
-O app **não** usa o dev server padrão do Next.js. `server.ts` cria um HTTP server com Next.js + Socket.io na mesma porta. O comando `npm run dev` roda `tsx watch server.ts`, não `next dev`. Socket.io é exposto via `globalThis.__socketIO`.
+O app **não** usa o dev server padrão do Next.js. `server.ts` cria um HTTP server com Next.js + Socket.io na mesma porta. O comando `pnpm dev` roda `tsx watch server.ts`, não `next dev`. Socket.io é exposto via `globalThis.__socketIO`.
 
 ### Estrutura de dados: processos no filesystem
 Os processos judiciais vivem em um diretório externo definido por `CLAUDE_DOCS_PATH` (env var). A estrutura é `$CLAUDE_DOCS_PATH/processos/<numero>/` com PDFs, peças (.docx), índices (.md), e notas (.md). O mapeamento Google Docs fica em `.gdocs-meta.json` dentro de cada processo.
