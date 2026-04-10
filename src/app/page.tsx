@@ -1,11 +1,18 @@
+"use client";
+
 import { Header } from "@/components/layout/header";
 import { ProcessList } from "@/components/process/process-list";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { CommandPalette } from "@/components/command-palette/command-palette";
+import { useProcessStore } from "@/stores/process-store";
 
 export default function Home() {
+  const { processes } = useProcessStore();
+
   return (
     <div className="flex flex-col h-screen">
       <Header />
+      <CommandPalette processes={processes} />
       <main className="flex-1 overflow-hidden">
         <div className="h-full flex">
           <div className="w-full max-w-2xl mx-auto">

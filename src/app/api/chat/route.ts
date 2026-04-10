@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runClaude } from "@/lib/claude/executor";
+import { buildPromptContext, assemblePrompt } from "@/lib/claude/prompt-builder";
 import { logAudit } from "@/lib/db/audit";
 import fs from "fs";
 import path from "path";
@@ -7,7 +8,7 @@ import path from "path";
 const CLAUDE_DOCS_PATH = process.env.CLAUDE_DOCS_PATH ?? "";
 
 export async function POST(request: NextRequest) {
-  const { processNumber, message } = await request.json();
+  const { processNumber, message, gdocsId } = await request.json();
 
   if (!processNumber || !message) {
     return NextResponse.json(
@@ -25,8 +26,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Build context with GDocs content (pull sob demanda)
+    const context = await buildPromptContext({
+      processNumber,
+      gdocsId,
+      includeDocument: !!gdocsId,
+    });
+
+    const fullPrompt = assemblePrompt(context, message);
+
     const result = await runClaude({
-      prompt: message,
+      prompt: fullPrompt,
       cwd: processDir,
     });
 
@@ -36,18 +46,15 @@ export async function POST(request: NextRequest) {
       entityType: "chat",
       metadata: {
         message: message.substring(0, 200),
+        gdocsId,
         exitCode: result.exitCode,
       },
     });
 
-    if (result.exitCode !== 0) {
-      return NextResponse.json({
-        response: result.output || "Erro na execução",
-        error: result.error,
-      });
-    }
-
-    return NextResponse.json({ response: result.output });
+    return NextResponse.json({
+      response: result.output || "Sem resposta",
+      error: result.error,
+    });
   } catch (error) {
     return NextResponse.json(
       { error: `Erro interno: ${error}` },

@@ -1,22 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { ProcessCard } from "./process-card";
-import type { ProcessInfo } from "@/lib/types/process";
+import { useProcesses } from "@/hooks/use-processes";
 
 export function ProcessList() {
-  const [processes, setProcesses] = useState<ProcessInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/processes")
-      .then((res) => res.json())
-      .then((data) => {
-        setProcesses(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
+  const { processes, loading } = useProcesses();
 
   if (loading) {
     return (
