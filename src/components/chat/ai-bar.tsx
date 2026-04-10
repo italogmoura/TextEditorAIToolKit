@@ -186,7 +186,7 @@ export function AiBar({
               onFocus={() => setFocused(true)}
               onBlur={() => { if (!value) setTimeout(() => setFocused(false), 150); }}
               onKeyDown={handleKeyDown}
-              placeholder={focused ? "Edit this document with AI..." : "Tell AI what else needs to be changed..."}
+              placeholder={focused ? "Edite este documento com IA..." : "Diga à IA o que precisa ser alterado..."}
               rows={focused ? 3 : 1}
               className="flex-1 text-sm bg-transparent outline-none placeholder:text-zinc-300 resize-none leading-relaxed"
               disabled={isLoading}

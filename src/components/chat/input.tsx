@@ -123,7 +123,7 @@ export function ChatInput({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Tell AI what else needs to be changed..."
+          placeholder="Diga à IA o que precisa ser alterado..."
           className="flex-1 text-sm bg-transparent outline-none placeholder:text-zinc-300"
           disabled={disabled}
         />

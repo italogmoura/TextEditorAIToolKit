@@ -41,9 +41,9 @@ export function ChatPanel({
               >
                 <Sparkles className="h-5 w-5 text-violet-500" />
               </div>
-              <p className="text-sm text-zinc-400">Tell AI what needs to be changed...</p>
+              <p className="text-sm text-zinc-400">Diga à IA o que precisa ser alterado...</p>
               <p className="text-[11px] text-zinc-300 mt-1">
-                Use <kbd className="px-1.5 py-0.5 bg-zinc-100 rounded text-[10px] font-mono">/</kbd> for commands
+                Use <kbd className="px-1.5 py-0.5 bg-zinc-100 rounded text-[10px] font-mono">/</kbd> para comandos
               </p>
             </div>
           )}
