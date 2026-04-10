@@ -8,7 +8,7 @@ import { getClaudeDocsPath } from "@/lib/config";
 const CLAUDE_DOCS_PATH = getClaudeDocsPath();
 
 export async function GET() {
-  const processes = listProcesses();
+  const processes = await listProcesses();
   return NextResponse.json(processes);
 }
 

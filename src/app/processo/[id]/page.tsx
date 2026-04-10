@@ -40,6 +40,7 @@ export default function ProcessoPage({
   const [selectedPdfPath, setSelectedPdfPath] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<ProcessDocument | null>(null);
   const [filePreviewContent, setFilePreviewContent] = useState<string | null>(null);
+  const [headingAnchor, setHeadingAnchor] = useState<string | null>(null);
 
   // Restore selected documents from localStorage on mount (PDF and GDocs are independent)
   useEffect(() => {
@@ -94,6 +95,7 @@ export default function ProcessoPage({
   const [leftPanelPercent, setLeftPanelPercent] = useState(100);
   const [rightPanelVisible, setRightPanelVisible] = useState(false);
   const isDragging = useRef(false);
+  const [isAnyDragging, setIsAnyDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Inner split: PDF | GDocs within the viewer area
@@ -111,12 +113,14 @@ export default function ProcessoPage({
 
   const handleMouseDown = useCallback(() => {
     isDragging.current = true;
+    setIsAnyDragging(true);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
   }, []);
 
   const handleInnerMouseDown = useCallback(() => {
     isInnerDragging.current = true;
+    setIsAnyDragging(true);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
   }, []);
@@ -135,6 +139,7 @@ export default function ProcessoPage({
       }
     }
     function handleMouseUp() {
+      const wasDragging = isDragging.current || isInnerDragging.current;
       if (isDragging.current) {
         isDragging.current = false;
         document.body.style.cursor = "";
@@ -145,6 +150,9 @@ export default function ProcessoPage({
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
         localStorage.setItem("inner-split-percent", String(innerSplitRef.current));
+      }
+      if (wasDragging) {
+        setIsAnyDragging(false);
       }
     }
     document.addEventListener("mousemove", handleMouseMove);
@@ -260,10 +268,11 @@ export default function ProcessoPage({
       </Header>
       <CommandPalette processes={processes} onCommand={handleSlashCommand} />
 
-      <div className="flex-1 flex overflow-hidden" ref={containerRef}>
+      <div className="flex-1 flex overflow-hidden relative" ref={containerRef}>
+        {isAnyDragging && <div className="absolute inset-0 z-50" />}
         {/* ===== LEFT PANEL ===== */}
         <div
-          className="flex flex-col overflow-hidden relative"
+          className="flex flex-col overflow-hidden relative min-w-0"
           style={{ width: `${leftPanelPercent}%` }}
         >
 
@@ -279,7 +288,7 @@ export default function ProcessoPage({
                     setSelectedPdfPath(doc.path);
                   } else if (doc.gdocsId) {
                     // Peça com GDocs: troca o editor
-                    setSelectedGDocsId(doc.gdocsId); setSelectedFile(null);
+                    setSelectedGDocsId(doc.gdocsId); setSelectedFile(null); setHeadingAnchor(null);
                   } else if (doc.name.endsWith(".md")) {
                     setSelectedFile(doc); setSelectedGDocsId(null);
                     fetch(`/api/file?path=${encodeURIComponent(doc.path)}`)
@@ -294,13 +303,13 @@ export default function ProcessoPage({
             )}
 
             {/* Viewer area — split horizontal: PDF (condicional) | GDocs (sempre visível) */}
-            <div className="flex-1 overflow-hidden relative min-h-0 flex flex-col" ref={viewerRef}>
-              <div className="flex-1 flex overflow-hidden min-h-0">
+            <div className="flex-1 overflow-hidden relative min-h-0 min-w-0 flex flex-col" ref={viewerRef}>
+              <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
                 {/* PDF Pane — aparece à esquerda quando um PDF está selecionado */}
                 {selectedPdfPath && (selectedGDocsId || selectedFile) && (
                   <>
                     <div
-                      className="overflow-hidden flex flex-col"
+                      className="overflow-hidden flex flex-col min-w-0"
                       style={{ width: `${innerSplitPercent}%` }}
                     >
                       <PdfViewer
@@ -390,8 +399,8 @@ export default function ProcessoPage({
                     )}
                   </div>
                 ) : selectedGDocsId ? (
-                  <div className="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0">
-                    <GDocsPreview gdocsId={selectedGDocsId} />
+                  <div className="flex-1 relative overflow-hidden min-h-0 min-w-0">
+                    <GDocsPreview gdocsId={selectedGDocsId} headingAnchor={headingAnchor} />
                   </div>
                 ) : !selectedPdfPath ? (
                   <ScrollArea className="flex-1">
@@ -502,7 +511,16 @@ export default function ProcessoPage({
             </div>{/* close viewer area */}
 
             {/* Index sidebar — direita */}
-            {hasPreview && <IndexSidebar gdocsId={selectedGDocsId ?? undefined} />}
+            {hasPreview && (
+              <IndexSidebar
+                gdocsId={selectedGDocsId ?? undefined}
+                onNavigateToHeading={(hId) => {
+                  setHeadingAnchor(hId);
+                  // Reset para permitir clicar no mesmo heading novamente
+                  setTimeout(() => setHeadingAnchor(null), 500);
+                }}
+              />
+            )}
           </div>{/* close flex container (sidebar + viewer) */}
         </div>
 

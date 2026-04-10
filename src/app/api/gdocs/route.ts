@@ -3,6 +3,7 @@ import {
   createDocument,
   getDocumentAsAnnotatedText,
   createOrGetFolder,
+  setMinimalMargins,
 } from "@/lib/gdocs/client";
 import { logAudit } from "@/lib/db/audit";
 import fs from "fs";
@@ -67,6 +68,25 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       { error: `Erro ao criar documento: ${error}` },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH: Apply minimal margins to an existing Google Doc
+export async function PATCH(request: NextRequest) {
+  const { gdocsId } = await request.json();
+
+  if (!gdocsId) {
+    return NextResponse.json({ error: "gdocsId é obrigatório" }, { status: 400 });
+  }
+
+  try {
+    await setMinimalMargins(gdocsId);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json(
+      { error: `Erro ao ajustar margens: ${error}` },
       { status: 500 }
     );
   }

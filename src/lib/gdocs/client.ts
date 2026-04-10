@@ -70,6 +70,9 @@ export async function createDocument(title: string, folderId?: string): Promise<
     }
   }
 
+  // Reduzir margens para otimizar visualização no iframe
+  await setMinimalMargins(docId);
+
   return docId;
 }
 
@@ -117,7 +120,36 @@ export async function uploadDocxAsGoogleDoc(
     } catch { /* ignore */ }
   }
 
+  // Reduzir margens para otimizar visualização no iframe
+  await setMinimalMargins(docId);
+
   return docId;
+}
+
+/**
+ * Reduz as margens do documento ao mínimo permitido (~18pt = 0.25in)
+ * para maximizar a área de texto visível no iframe embeddado.
+ */
+export async function setMinimalMargins(docId: string) {
+  const docs = await getDocsClient();
+  await docs.documents.batchUpdate({
+    documentId: docId,
+    requestBody: {
+      requests: [
+        {
+          updateDocumentStyle: {
+            documentStyle: {
+              marginTop: { magnitude: 18, unit: "PT" },
+              marginBottom: { magnitude: 18, unit: "PT" },
+              marginLeft: { magnitude: 18, unit: "PT" },
+              marginRight: { magnitude: 18, unit: "PT" },
+            },
+            fields: "marginTop,marginBottom,marginLeft,marginRight",
+          },
+        },
+      ],
+    },
+  });
 }
 
 export async function getDocumentContent(docId: string) {

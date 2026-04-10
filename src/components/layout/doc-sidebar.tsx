@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  FileText, FolderOpen, BookOpen, ChevronDown, ChevronRight, GripVertical, PanelLeft, PanelRight,
+  FileText, FolderOpen, BookOpen, ChevronDown, ChevronRight, GripVertical, PanelLeft, PanelRight, RefreshCw,
 } from "lucide-react";
 import type { ProcessDocument } from "@/lib/types/process";
 
@@ -170,41 +170,61 @@ interface OutlineItem {
   level: number;
   text: string;
   index: number;
+  headingId?: string;
 }
 
-export function IndexSidebar({ gdocsId }: { gdocsId?: string }) {
+export function IndexSidebar({
+  gdocsId,
+  onNavigateToHeading,
+}: {
+  gdocsId?: string;
+  onNavigateToHeading?: (headingId: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [outline, setOutline] = useState<OutlineItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadedDocId, setLoadedDocId] = useState<string | null>(null);
+  const loadedDocIdRef = useRef<string | null>(null);
   const { width, handleMouseDown } = useResizable("sidebar-index-width", 200, 140, 350, "right");
 
   useEffect(() => { setOpen(loadState("sidebar-index-open", false)); }, []);
 
-  async function loadOutline() {
-    if (!gdocsId || loadedDocId === gdocsId) return;
+  const fetchOutline = useCallback(async (docId: string, force = false) => {
+    if (!force && loadedDocIdRef.current === docId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/gdocs/outline?docId=${gdocsId}`);
+      const res = await fetch(`/api/gdocs/outline?docId=${docId}`);
       const data = await res.json();
       setOutline(data.outline ?? []);
-      setLoadedDocId(gdocsId);
+      loadedDocIdRef.current = docId;
     } catch {
       setOutline([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  // Carrega outline quando o painel está aberto e o doc muda
+  useEffect(() => {
+    if (open && gdocsId) {
+      fetchOutline(gdocsId);
+    }
+  }, [open, gdocsId, fetchOutline]);
+
+  // Auto-refresh a cada 30s enquanto o painel está aberto
+  useEffect(() => {
+    if (!open || !gdocsId) return;
+    const interval = setInterval(() => fetchOutline(gdocsId, true), 30_000);
+    return () => clearInterval(interval);
+  }, [open, gdocsId, fetchOutline]);
 
   function handleToggle() {
     const next = !open;
     setOpen(next);
     save("sidebar-index-open", String(next));
-    if (next) loadOutline();
   }
 
-  if (open && gdocsId && gdocsId !== loadedDocId && !loading) {
-    loadOutline();
+  function handleRefresh() {
+    if (gdocsId) fetchOutline(gdocsId, true);
   }
 
   return (
@@ -229,11 +249,17 @@ export function IndexSidebar({ gdocsId }: { gdocsId?: string }) {
         >
           {open ? <ChevronDown className="h-3 w-3" /> : <PanelRight className="h-3 w-3" />}
           {open && "Índice"}
+          {open && (
+            <RefreshCw
+              className={`h-2.5 w-2.5 ml-auto text-zinc-400 hover:text-zinc-600 transition-colors ${loading ? "animate-spin" : ""}`}
+              onClick={(e) => { e.stopPropagation(); handleRefresh(); }}
+            />
+          )}
         </button>
 
         {open && (
           <ScrollArea className="flex-1 min-h-0">
-            {loading ? (
+            {loading && outline.length === 0 ? (
               <div className="px-3 py-3 text-[11px] text-zinc-400">Carregando...</div>
             ) : outline.length === 0 ? (
               <div className="px-3 py-3 text-[11px] text-zinc-400 italic">
@@ -244,9 +270,16 @@ export function IndexSidebar({ gdocsId }: { gdocsId?: string }) {
                 {outline.map((item, i) => (
                   <button
                     key={i}
-                    className="w-full text-left px-2 py-1 text-[11px] text-zinc-600 hover:bg-zinc-100 rounded truncate block"
+                    className={`w-full text-left px-2 py-1 text-[11px] text-zinc-600 hover:bg-zinc-100 rounded truncate block ${
+                      item.headingId ? "cursor-pointer" : ""
+                    }`}
                     style={{ paddingLeft: `${8 + (item.level - 1) * 12}px` }}
                     title={item.text}
+                    onClick={() => {
+                      if (item.headingId && onNavigateToHeading) {
+                        onNavigateToHeading(item.headingId);
+                      }
+                    }}
                   >
                     <span className={item.level === 1 ? "font-semibold" : item.level === 2 ? "font-medium" : ""}>
                       {item.text}

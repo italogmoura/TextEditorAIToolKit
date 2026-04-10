@@ -4,7 +4,7 @@ import { listProcesses } from "@/lib/filesystem/processes";
 
 describe("PromptBuilder: buildPromptContext", () => {
   it("deve montar contexto para um processo existente", async () => {
-    const processes = listProcesses();
+    const processes = await listProcesses();
     const p = processes[0];
     expect(p).toBeTruthy();
 
@@ -19,7 +19,7 @@ describe("PromptBuilder: buildPromptContext", () => {
   });
 
   it("deve incluir índice se existir", async () => {
-    const processes = listProcesses();
+    const processes = await listProcesses();
     const p = processes.find((p) => p.hasIndex);
     if (!p) {
       console.log("  → Nenhum processo com índice no test-data, pulando");

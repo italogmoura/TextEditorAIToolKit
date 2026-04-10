@@ -2,14 +2,14 @@ import { describe, it, expect } from "vitest";
 import { listProcesses, getProcessDocuments } from "@/lib/filesystem/processes";
 
 describe("Filesystem: listProcesses", () => {
-  it("deve listar processos da pasta test-data", () => {
-    const processes = listProcesses();
+  it("deve listar processos da pasta test-data", async () => {
+    const processes = await listProcesses();
     expect(processes.length).toBeGreaterThan(0);
     console.log(`  → ${processes.length} processos encontrados`);
   });
 
-  it("cada processo deve ter number e path válidos", () => {
-    const processes = listProcesses();
+  it("cada processo deve ter number e path válidos", async () => {
+    const processes = await listProcesses();
     for (const p of processes) {
       expect(p.number).toBeTruthy();
       expect(p.path).toContain("test-data");
@@ -17,8 +17,8 @@ describe("Filesystem: listProcesses", () => {
     }
   });
 
-  it("deve contar peças e PDFs corretamente", () => {
-    const processes = listProcesses();
+  it("deve contar peças e PDFs corretamente", async () => {
+    const processes = await listProcesses();
     const withPecas = processes.filter((p) => p.pecasCount > 0);
     const withPdfs = processes.filter((p) => p.pdfsCount > 0);
     console.log(`  → ${withPecas.length} processos com peças, ${withPdfs.length} com PDFs`);
@@ -26,8 +26,8 @@ describe("Filesystem: listProcesses", () => {
     expect(withPdfs.length).toBeGreaterThan(0);
   });
 
-  it("deve ordenar por número decrescente", () => {
-    const processes = listProcesses();
+  it("deve ordenar por número decrescente", async () => {
+    const processes = await listProcesses();
     for (let i = 1; i < processes.length; i++) {
       expect(processes[i - 1].number >= processes[i].number).toBe(true);
     }
@@ -35,8 +35,8 @@ describe("Filesystem: listProcesses", () => {
 });
 
 describe("Filesystem: getProcessDocuments", () => {
-  it("deve listar documentos de um processo existente", () => {
-    const processes = listProcesses();
+  it("deve listar documentos de um processo existente", async () => {
+    const processes = await listProcesses();
     const firstWithDocs = processes.find((p) => p.pdfsCount > 0 || p.pecasCount > 0);
     expect(firstWithDocs).toBeTruthy();
 
@@ -45,8 +45,8 @@ describe("Filesystem: getProcessDocuments", () => {
     console.log(`  → ${docs.length} documentos em ${firstWithDocs!.number}`);
   });
 
-  it("documentos devem ter tipo correto", () => {
-    const processes = listProcesses();
+  it("documentos devem ter tipo correto", async () => {
+    const processes = await listProcesses();
     const p = processes.find((p) => p.pecasCount > 0 && p.pdfsCount > 0);
     if (!p) return;
 
@@ -68,8 +68,8 @@ describe("Filesystem: getProcessDocuments", () => {
     expect(docs).toEqual([]);
   });
 
-  it("PDFs devem ter extensão .PDF ou .pdf", () => {
-    const processes = listProcesses();
+  it("PDFs devem ter extensão .PDF ou .pdf", async () => {
+    const processes = await listProcesses();
     const p = processes.find((p) => p.pdfsCount > 0);
     if (!p) return;
 

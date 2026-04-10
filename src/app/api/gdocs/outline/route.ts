@@ -5,6 +5,7 @@ export interface OutlineItem {
   level: number;
   text: string;
   index: number;
+  headingId?: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -19,14 +20,28 @@ export async function GET(request: NextRequest) {
     const content = doc.body?.content ?? [];
     const outline: OutlineItem[] = [];
 
+    // Mapa de estilos do Google Docs para nível de heading
+    const styleToLevel: Record<string, number> = {
+      TITLE: 1,
+      SUBTITLE: 2,
+    };
+
     for (const element of content) {
       if (!element.paragraph) continue;
 
       const style = element.paragraph.paragraphStyle?.namedStyleType;
-      if (!style || !style.startsWith("HEADING_")) continue;
+      if (!style) continue;
 
-      const level = parseInt(style.replace("HEADING_", ""), 10);
-      if (isNaN(level)) continue;
+      let level: number | undefined;
+
+      if (style.startsWith("HEADING_")) {
+        level = parseInt(style.replace("HEADING_", ""), 10);
+        if (isNaN(level)) continue;
+      } else if (style in styleToLevel) {
+        level = styleToLevel[style];
+      } else {
+        continue;
+      }
 
       const text = element.paragraph.elements
         ?.map((e) => e.textRun?.content ?? "")
@@ -35,10 +50,13 @@ export async function GET(request: NextRequest) {
 
       if (!text) continue;
 
+      const headingId = element.paragraph.paragraphStyle?.headingId;
+
       outline.push({
         level,
         text,
         index: element.startIndex ?? 0,
+        ...(headingId && { headingId }),
       });
     }
 

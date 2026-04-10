@@ -1,4 +1,5 @@
 import fs from "fs";
+import fsp from "fs/promises";
 import path from "path";
 import type { ProcessInfo, ProcessDocument, ProcessStatus } from "@/lib/types/process";
 import { getClaudeDocsPath } from "@/lib/config";
@@ -7,24 +8,40 @@ function getProcessosDir() {
   return path.join(getClaudeDocsPath(), "processos");
 }
 
-function getProcessStatus(processPath: string): ProcessStatus {
+async function existsAsync(p: string): Promise<boolean> {
+  try {
+    await fsp.access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readdirSafe(dir: string): Promise<string[]> {
+  try {
+    return await fsp.readdir(dir);
+  } catch {
+    return [];
+  }
+}
+
+async function getProcessStatus(processPath: string): Promise<ProcessStatus> {
   const docsDir = path.join(processPath, "docs");
   const pecasDir = path.join(processPath, "pecas");
 
-  const hasIndex =
-    (fs.existsSync(path.join(docsDir, "indice-eproc.md")) ||
-      fs.existsSync(path.join(docsDir, "indice-unico.md")));
+  const [hasIndexEproc, hasIndexUnico, pecasFiles, gdocsMetaExists] = await Promise.all([
+    existsAsync(path.join(docsDir, "indice-eproc.md")),
+    existsAsync(path.join(docsDir, "indice-unico.md")),
+    readdirSafe(pecasDir),
+    existsAsync(path.join(processPath, ".gdocs-meta.json")),
+  ]);
 
-  const hasPecas =
-    fs.existsSync(pecasDir) &&
-    fs.readdirSync(pecasDir).some((f) => f.endsWith(".md") || f.endsWith(".docx"));
+  const hasIndex = hasIndexEproc || hasIndexUnico;
+  const hasPecas = pecasFiles.some((f) => f.endsWith(".md") || f.endsWith(".docx"));
 
-  const gdocsMeta = path.join(processPath, ".gdocs-meta.json");
-  const hasGdocsMeta = fs.existsSync(gdocsMeta);
-
-  if (hasGdocsMeta) {
+  if (gdocsMetaExists) {
     try {
-      const meta = JSON.parse(fs.readFileSync(gdocsMeta, "utf-8"));
+      const meta = JSON.parse(await fsp.readFile(path.join(processPath, ".gdocs-meta.json"), "utf-8"));
       const anyFiled = Object.values(meta).some(
         (v: unknown) => (v as { status?: string })?.status === "filed"
       );
@@ -39,45 +56,59 @@ function getProcessStatus(processPath: string): ProcessStatus {
   return "novo";
 }
 
-export function listProcesses(): ProcessInfo[] {
-  if (!fs.existsSync(getProcessosDir())) {
+// Cache em memória para evitar chamadas repetidas ao filesystem (especialmente iCloud)
+let listCache: { data: ProcessInfo[]; ts: number } | null = null;
+const CACHE_TTL_MS = 5_000;
+
+export async function listProcesses(): Promise<ProcessInfo[]> {
+  if (listCache && Date.now() - listCache.ts < CACHE_TTL_MS) {
+    return listCache.data;
+  }
+
+  const processosDir = getProcessosDir();
+  if (!(await existsAsync(processosDir))) {
     return [];
   }
 
-  const entries = fs.readdirSync(getProcessosDir(), { withFileTypes: true });
+  const entries = await fsp.readdir(processosDir, { withFileTypes: true });
+  const dirs = entries.filter((e) => e.isDirectory() && !e.name.startsWith("."));
 
-  return entries
-    .filter((e) => e.isDirectory() && !e.name.startsWith("."))
-    .map((e) => {
-      const processPath = path.join(getProcessosDir(), e.name);
+  const results = await Promise.all(
+    dirs.map(async (e) => {
+      const processPath = path.join(processosDir, e.name);
       const pecasDir = path.join(processPath, "pecas");
-
-      const pecasCount = fs.existsSync(pecasDir)
-        ? fs.readdirSync(pecasDir).filter((f) => !f.startsWith(".")).length
-        : 0;
-
-      const pdfsCount = fs.existsSync(processPath)
-        ? fs.readdirSync(processPath).filter((f) => f.toLowerCase().endsWith(".pdf")).length
-        : 0;
-
       const docsDir = path.join(processPath, "docs");
-      const docsPdfs = fs.existsSync(docsDir)
-        ? fs.readdirSync(docsDir).filter((f) => f.toLowerCase().endsWith(".pdf")).length
-        : 0;
+
+      const [pecasFiles, rootFiles, docsFiles, hasIndexEproc, hasIndexUnico, status] =
+        await Promise.all([
+          readdirSafe(pecasDir),
+          readdirSafe(processPath),
+          readdirSafe(docsDir),
+          existsAsync(path.join(docsDir, "indice-eproc.md")),
+          existsAsync(path.join(docsDir, "indice-unico.md")),
+          getProcessStatus(processPath),
+        ]);
+
+      const pecasCount = pecasFiles.filter((f) => !f.startsWith(".")).length;
+      const pdfsCount =
+        rootFiles.filter((f) => f.toLowerCase().endsWith(".pdf")).length +
+        docsFiles.filter((f) => f.toLowerCase().endsWith(".pdf")).length;
 
       return {
         number: e.name,
         path: processPath,
         hasPecas: pecasCount > 0,
-        hasIndex:
-          fs.existsSync(path.join(docsDir, "indice-eproc.md")) ||
-          fs.existsSync(path.join(docsDir, "indice-unico.md")),
+        hasIndex: hasIndexEproc || hasIndexUnico,
         pecasCount,
-        pdfsCount: pdfsCount + docsPdfs,
-        status: getProcessStatus(processPath),
+        pdfsCount,
+        status,
       };
     })
-    .sort((a, b) => b.number.localeCompare(a.number));
+  );
+
+  const sorted = results.sort((a, b) => b.number.localeCompare(a.number));
+  listCache = { data: sorted, ts: Date.now() };
+  return sorted;
 }
 
 export function getProcessDocuments(processNumber: string): ProcessDocument[] {

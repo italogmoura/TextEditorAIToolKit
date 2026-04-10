@@ -1,19 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ExternalLink, RefreshCw, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function GDocsPreview({
   gdocsId,
   expanded,
+  headingAnchor,
 }: {
   gdocsId: string;
   expanded?: boolean;
+  headingAnchor?: string | null;
 }) {
   const [iframeError, setIframeError] = useState(false);
-  const embedUrl = `https://docs.google.com/document/d/${gdocsId}/edit?rm=minimal`;
+  const appliedMargins = useRef<Set<string>>(new Set());
+  const anchor = headingAnchor ? `#heading=${headingAnchor}` : "";
+  const embedUrl = `https://docs.google.com/document/d/${gdocsId}/edit?rm=minimal${anchor}`;
   const editUrl = `https://docs.google.com/document/d/${gdocsId}/edit`;
+
+  useEffect(() => {
+    if (appliedMargins.current.has(gdocsId)) return;
+    appliedMargins.current.add(gdocsId);
+    fetch("/api/gdocs", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gdocsId }),
+    }).catch(() => {});
+  }, [gdocsId]);
 
   if (iframeError) {
     return (
@@ -29,15 +43,51 @@ export function GDocsPreview({
     );
   }
 
+  if (expanded) {
+    return (
+      <iframe
+        src={embedUrl}
+        className="fixed inset-0 z-50 w-full h-full border-0"
+        title="Google Docs Editor"
+        onError={() => setIframeError(true)}
+        allow="clipboard-read; clipboard-write"
+      />
+    );
+  }
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      setContainerSize({ w: width, h: height });
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  // Largura fixa próxima da página A4/Letter do Google Docs + pequena margem do canvas
+  const iframeFixedWidth = 840;
+  const scale = containerSize.w > 0 ? Math.min(1, containerSize.w / iframeFixedWidth) : 0.7;
+
   return (
-    <iframe
-      src={embedUrl}
-      className={`w-full border-0 ${expanded ? "fixed inset-0 z-50" : ""}`}
-      style={{ flex: "1 1 0%", minHeight: 0 }}
-      title="Google Docs Editor"
-      onError={() => setIframeError(true)}
-      allow="clipboard-read; clipboard-write"
-    />
+    <div ref={containerRef} className="absolute inset-0 overflow-hidden">
+      <iframe
+        src={embedUrl}
+        className="border-0 origin-top-left"
+        style={{
+          width: iframeFixedWidth,
+          height: containerSize.h > 0 ? containerSize.h / scale : "100%",
+          transform: `scale(${scale})`,
+        }}
+        title="Google Docs Editor"
+        onError={() => setIframeError(true)}
+        allow="clipboard-read; clipboard-write"
+      />
+    </div>
   );
 }
 
