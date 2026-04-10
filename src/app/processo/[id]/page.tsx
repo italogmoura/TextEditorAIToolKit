@@ -287,12 +287,6 @@ export default function ProcessoPage({
                   }
                 }}
               />
-              <Button
-                variant="ghost" size="sm" className="text-xs m-1 shrink-0"
-                onClick={() => setSelectedGDocsId(null)}
-              >
-                Voltar à lista
-              </Button>
             </div>
           ) : (
             <ScrollArea className="flex-1">
