@@ -32,29 +32,35 @@ export function AiBar({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { messages, isLoading, sendMessage } = useChatStore();
 
-  // Auto-detect Ctrl+C / Cmd+C anywhere and read clipboard
+  // Monitor clipboard: when user copies text (even inside GDocs iframe),
+  // detect it by polling clipboard on window focus
+  const lastClipboardRef = useRef<string>("");
+
   useEffect(() => {
-    async function handleCopy() {
-      // Small delay to let the clipboard populate
-      await new Promise((r) => setTimeout(r, 100));
+    async function checkClipboard() {
       try {
         const text = await navigator.clipboard.readText();
-        if (text && text.trim().length > 10) {
-          setQuotedText(text.trim());
+        const trimmed = text?.trim() ?? "";
+        if (trimmed.length > 10 && trimmed !== lastClipboardRef.current) {
+          lastClipboardRef.current = trimmed;
+          setQuotedText(trimmed);
         }
       } catch {
-        // Permission denied or clipboard empty — ignore silently
+        // Permission denied — ignore
       }
     }
 
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "c") {
-        handleCopy();
-      }
-    }
+    // Check clipboard when window regains focus (user clicks back from iframe)
+    function onFocus() { checkClipboard(); }
+    // Check on any click in our app (user clicked out of iframe)
+    function onClick() { checkClipboard(); }
 
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("click", onClick);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("click", onClick);
+    };
   }, []);
 
   // Also detect paste directly in the textarea
