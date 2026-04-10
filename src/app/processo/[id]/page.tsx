@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
-  FileText, FolderOpen, ArrowLeft, ExternalLink, BookOpen, Plus,
+  FileText, FolderOpen, ArrowLeft, ExternalLink, BookOpen, Plus, X,
 } from "lucide-react";
 import Link from "next/link";
 import type { ProcessDocument } from "@/lib/types/process";
@@ -16,6 +16,7 @@ import { AgentPanel } from "@/components/agents/agent-panel";
 import { TerminalPanel } from "@/components/terminal/terminal-panel";
 import { GDocsPreview } from "@/components/gdocs/gdocs-preview";
 import { GDocsStatus } from "@/components/gdocs/gdocs-status";
+import { PdfViewer } from "@/components/pdf/pdf-viewer";
 import { useSocket } from "@/hooks/use-socket";
 import { useGDocs } from "@/hooks/use-gdocs";
 import { CommandPalette } from "@/components/command-palette/command-palette";
@@ -36,6 +37,9 @@ export default function ProcessoPage({
   const [data, setData] = useState<ProcessData | null>(null);
   const [activeTab, setActiveTab] = useState<"chat" | "agents">("chat");
   const [selectedGDocsId, setSelectedGDocsId] = useState<string | null>(null);
+  const [selectedPdfPath, setSelectedPdfPath] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<ProcessDocument | null>(null);
+  const [filePreviewContent, setFilePreviewContent] = useState<string | null>(null);
   const { connected, terminalLines, clearTerminal } = useSocket();
   const { createDocument, openInGoogleDocs, isCreating } = useGDocs();
   const { processes, fetchProcesses } = useProcessStore();
@@ -100,8 +104,81 @@ export default function ProcessoPage({
             </div>
           </div>
 
-          {/* GDocs preview when a document is selected */}
-          {selectedGDocsId ? (
+          {/* Preview area: PDF, GDocs, file preview, or document list */}
+          {selectedPdfPath ? (
+            <div className="flex-1">
+              <PdfViewer
+                filePath={selectedPdfPath}
+                onClose={() => setSelectedPdfPath(null)}
+              />
+            </div>
+          ) : selectedFile && !selectedGDocsId ? (
+            <div className="flex-1 flex flex-col">
+              <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30">
+                <span className="text-xs font-medium truncate">{selectedFile.name}</span>
+                <div className="flex gap-1">
+                  {selectedFile.name.endsWith(".docx") && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="h-6 text-xs gap-1"
+                      disabled={isCreating}
+                      onClick={async () => {
+                        const docName = selectedFile.name.replace(/\.docx$/, "");
+                        const res = await fetch("/api/gdocs/migrate", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            processNumber,
+                            filePath: selectedFile.path,
+                            documentName: docName,
+                          }),
+                        });
+                        const result = await res.json();
+                        if (result.gdocsId) {
+                          setSelectedGDocsId(result.gdocsId);
+                          setSelectedFile(null);
+                          // Refresh document list
+                          const refreshRes = await fetch(`/api/processes/${encodeURIComponent(processNumber)}`);
+                          setData(await refreshRes.json());
+                        } else {
+                          alert(result.error || "Erro na migração");
+                        }
+                      }}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Migrar para Google Docs
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs"
+                    onClick={() => { setSelectedFile(null); setFilePreviewContent(null); }}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+              {filePreviewContent ? (
+                <ScrollArea className="flex-1 p-4">
+                  <pre className="text-xs font-mono whitespace-pre-wrap">{filePreviewContent}</pre>
+                </ScrollArea>
+              ) : selectedFile.name.endsWith(".docx") ? (
+                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                  <div className="text-center">
+                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                    <p>Arquivo .docx sem Google Docs vinculado</p>
+                    <p className="text-xs mt-1">Clique em &quot;Migrar para Google Docs&quot; para editar online</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                  Carregando...
+                </div>
+              )}
+            </div>
+          ) : selectedGDocsId ? (
             <div className="flex-1 flex flex-col">
               <GDocsPreview gdocsId={selectedGDocsId} />
               <Button
@@ -140,7 +217,11 @@ export default function ProcessoPage({
                     <p className="text-sm text-muted-foreground">Nenhum PDF</p>
                   ) : (
                     pdfs.map((doc) => (
-                      <div key={doc.name} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-accent text-sm">
+                      <div
+                        key={doc.name}
+                        className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-accent text-sm cursor-pointer"
+                        onClick={() => setSelectedPdfPath(doc.path)}
+                      >
                         <FolderOpen className="h-4 w-4 text-red-400" />
                         <span className="truncate flex-1 text-xs">{doc.name}</span>
                         <span className="text-xs text-muted-foreground">{formatBytes(doc.sizeBytes)}</span>
@@ -171,7 +252,31 @@ export default function ProcessoPage({
                   ) : (
                     pecas.map((doc) => (
                       <div key={doc.name} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-accent text-sm cursor-pointer"
-                        onClick={() => doc.gdocsId && setSelectedGDocsId(doc.gdocsId)}
+                        onClick={async () => {
+                          if (doc.gdocsId) {
+                            setSelectedGDocsId(doc.gdocsId);
+                            setSelectedPdfPath(null);
+                            setSelectedFile(null);
+                          } else if (doc.name.endsWith(".md")) {
+                            // Preview de texto
+                            setSelectedFile(doc);
+                            setSelectedPdfPath(null);
+                            setSelectedGDocsId(null);
+                            try {
+                              const res = await fetch(`/api/file?path=${encodeURIComponent(doc.path)}`);
+                              const data = await res.json();
+                              setFilePreviewContent(data.content ?? "Erro ao carregar");
+                            } catch {
+                              setFilePreviewContent("Erro ao carregar arquivo");
+                            }
+                          } else {
+                            // .docx sem gdocsId: mostrar opção de migrar
+                            setSelectedFile(doc);
+                            setSelectedPdfPath(null);
+                            setSelectedGDocsId(null);
+                            setFilePreviewContent(null);
+                          }
+                        }}
                       >
                         <FileText className="h-4 w-4 text-blue-400" />
                         <span className="truncate flex-1">{doc.name}</span>

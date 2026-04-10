@@ -73,6 +73,53 @@ export async function createDocument(title: string, folderId?: string): Promise<
   return docId;
 }
 
+/**
+ * Upload de um .docx local como Google Doc (com conversão automática).
+ * O Google Drive converte .docx para Google Docs format nativamente.
+ */
+export async function uploadDocxAsGoogleDoc(
+  localPath: string,
+  title: string,
+  folderId?: string
+): Promise<string> {
+  const drive = await getDriveClient();
+  const fs = await import("fs");
+
+  const fileStream = fs.createReadStream(localPath);
+
+  const file = await drive.files.create({
+    requestBody: {
+      name: title,
+      mimeType: "application/vnd.google-apps.document", // Convert to Google Docs
+      parents: folderId ? [folderId] : undefined,
+    },
+    media: {
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      body: fileStream,
+    },
+    fields: "id",
+  });
+
+  const docId = file.data.id!;
+
+  // Share with all configured emails
+  for (const email of SHARED_EMAILS) {
+    try {
+      await drive.permissions.create({
+        fileId: docId,
+        requestBody: {
+          type: "user",
+          role: "writer",
+          emailAddress: email.trim(),
+        },
+        sendNotificationEmail: false,
+      });
+    } catch { /* ignore */ }
+  }
+
+  return docId;
+}
+
 export async function getDocumentContent(docId: string) {
   const docs = await getDocsClient();
   const doc = await docs.documents.get({ documentId: docId });

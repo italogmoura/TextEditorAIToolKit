@@ -38,3 +38,6 @@ next-env.d.ts
 
 # google service account key
 bubble-307922-*.json
+
+# test data (copies of real processos)
+/test-data/

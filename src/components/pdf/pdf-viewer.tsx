@@ -3,12 +3,22 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X } from "lucide-react";
-import { Document, Page, pdfjs } from "react-pdf";
-import "react-pdf/dist/Page/AnnotationLayer.css";
-import "react-pdf/dist/Page/TextLayer.css";
+import dynamic from "next/dynamic";
 
-// Configure PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Dynamic import to avoid SSR issues (DOMMatrix not defined on server)
+const Document = dynamic(
+  () => import("react-pdf").then((mod) => {
+    // Configure worker on client side
+    mod.pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${mod.pdfjs.version}/build/pdf.worker.min.mjs`;
+    return mod.Document;
+  }),
+  { ssr: false }
+);
+
+const Page = dynamic(
+  () => import("react-pdf").then((mod) => mod.Page),
+  { ssr: false }
+);
 
 export function PdfViewer({
   filePath,
@@ -23,7 +33,6 @@ export function PdfViewer({
   const [currentPage, setCurrentPage] = useState(highlightPage ?? 1);
   const [scale, setScale] = useState(1.0);
 
-  // Serve PDFs via API route
   const pdfUrl = `/api/pdf?path=${encodeURIComponent(filePath)}`;
 
   return (
@@ -69,7 +78,7 @@ export function PdfViewer({
       <div className="flex-1 overflow-auto flex justify-center p-4">
         <Document
           file={pdfUrl}
-          onLoadSuccess={({ numPages: n }) => {
+          onLoadSuccess={({ numPages: n }: { numPages: number }) => {
             setNumPages(n);
             if (highlightPage && highlightPage <= n) setCurrentPage(highlightPage);
           }}
