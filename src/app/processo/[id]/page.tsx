@@ -14,7 +14,7 @@ import type { ProcessDocument } from "@/lib/types/process";
 import { AgentPanel } from "@/components/agents/agent-panel";
 import { AiBar } from "@/components/chat/ai-bar";
 import { TerminalPanel } from "@/components/terminal/terminal-panel";
-import { GDocsPreview } from "@/components/gdocs/gdocs-preview";
+import { GDocsPreview, GDocsActions } from "@/components/gdocs/gdocs-preview";
 import { GDocsStatus } from "@/components/gdocs/gdocs-status";
 import { PdfViewer } from "@/components/pdf/pdf-viewer";
 import { useSocket } from "@/hooks/use-socket";
@@ -156,6 +156,28 @@ export default function ProcessoPage({
               <PanelRight className={`h-3 w-3 ${rightPanelVisible ? "text-primary" : ""}`} />
             </Button>
           </div>
+          {selectedGDocsId && (
+            <GDocsActions
+              gdocsId={selectedGDocsId}
+              filePath={pecas.find((d) => d.gdocsId === selectedGDocsId)?.path}
+              onRemigrate={async () => {
+                const doc = pecas.find((d) => d.gdocsId === selectedGDocsId);
+                if (!doc?.path || !doc.name.endsWith(".docx")) return;
+                const docName = doc.name.replace(/\.docx$/, "");
+                const res = await fetch("/api/gdocs/migrate", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ processNumber, filePath: doc.path, documentName: docName }),
+                });
+                const result = await res.json();
+                if (result.gdocsId) {
+                  setSelectedGDocsId(result.gdocsId);
+                  const refreshRes = await fetch(`/api/processes/${encodeURIComponent(processNumber)}`);
+                  setData(await refreshRes.json());
+                }
+              }}
+            />
+          )}
           <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-mono text-muted-foreground shrink-0">⌘K</kbd>
         </div>
       </Header>
@@ -266,27 +288,7 @@ export default function ProcessoPage({
             </div>
           ) : selectedGDocsId ? (
             <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-              <GDocsPreview
-                gdocsId={selectedGDocsId}
-                processNumber={processNumber}
-                filePath={pecas.find((d) => d.gdocsId === selectedGDocsId)?.path}
-                onRemigrate={async () => {
-                  const doc = pecas.find((d) => d.gdocsId === selectedGDocsId);
-                  if (!doc?.path || !doc.name.endsWith(".docx")) return;
-                  const docName = doc.name.replace(/\.docx$/, "");
-                  const res = await fetch("/api/gdocs/migrate", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ processNumber, filePath: doc.path, documentName: docName }),
-                  });
-                  const result = await res.json();
-                  if (result.gdocsId) {
-                    setSelectedGDocsId(result.gdocsId);
-                    const refreshRes = await fetch(`/api/processes/${encodeURIComponent(processNumber)}`);
-                    setData(await refreshRes.json());
-                  }
-                }}
-              />
+              <GDocsPreview gdocsId={selectedGDocsId} />
             </div>
           ) : (
             <ScrollArea className="flex-1">
