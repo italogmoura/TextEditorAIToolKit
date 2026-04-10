@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     const result = await runClaude({
       prompt: fullPrompt,
-      cwd: processDir,
+      processNumber,
     });
 
     await logAudit({

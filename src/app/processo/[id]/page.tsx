@@ -41,16 +41,14 @@ export default function ProcessoPage({
   const [selectedFile, setSelectedFile] = useState<ProcessDocument | null>(null);
   const [filePreviewContent, setFilePreviewContent] = useState<string | null>(null);
 
-  // Restore selected document from localStorage on mount
+  // Restore selected documents from localStorage on mount (PDF and GDocs are independent)
   useEffect(() => {
     const gdocs = localStorage.getItem(`doc-gdocs-${processNumber}`);
     const pdf = localStorage.getItem(`doc-pdf-${processNumber}`);
     const file = localStorage.getItem(`doc-file-${processNumber}`);
-    if (gdocs) {
-      setSelectedGDocsId(gdocs);
-    } else if (pdf) {
-      setSelectedPdfPath(pdf);
-    } else if (file) {
+    if (gdocs) setSelectedGDocsId(gdocs);
+    if (pdf) setSelectedPdfPath(pdf);
+    if (!gdocs && file) {
       try {
         const parsed = JSON.parse(file);
         setSelectedFile(parsed);
@@ -64,35 +62,52 @@ export default function ProcessoPage({
     }
   }, [processNumber]);
 
-  // Persist selected document to localStorage
+  // Persist selected documents to localStorage (PDF and GDocs coexist)
   useEffect(() => {
     if (selectedGDocsId) {
       localStorage.setItem(`doc-gdocs-${processNumber}`, selectedGDocsId);
-      localStorage.removeItem(`doc-pdf-${processNumber}`);
-      localStorage.removeItem(`doc-file-${processNumber}`);
-    } else if (selectedPdfPath) {
-      localStorage.setItem(`doc-pdf-${processNumber}`, selectedPdfPath);
-      localStorage.removeItem(`doc-gdocs-${processNumber}`);
-      localStorage.removeItem(`doc-file-${processNumber}`);
-    } else if (selectedFile) {
-      localStorage.setItem(`doc-file-${processNumber}`, JSON.stringify(selectedFile));
-      localStorage.removeItem(`doc-gdocs-${processNumber}`);
-      localStorage.removeItem(`doc-pdf-${processNumber}`);
     } else {
       localStorage.removeItem(`doc-gdocs-${processNumber}`);
+    }
+  }, [selectedGDocsId, processNumber]);
+
+  useEffect(() => {
+    if (selectedPdfPath) {
+      localStorage.setItem(`doc-pdf-${processNumber}`, selectedPdfPath);
+    } else {
       localStorage.removeItem(`doc-pdf-${processNumber}`);
+    }
+  }, [selectedPdfPath, processNumber]);
+
+  useEffect(() => {
+    if (selectedFile) {
+      localStorage.setItem(`doc-file-${processNumber}`, JSON.stringify(selectedFile));
+    } else {
       localStorage.removeItem(`doc-file-${processNumber}`);
     }
-  }, [selectedGDocsId, selectedPdfPath, selectedFile, processNumber]);
+  }, [selectedFile, processNumber]);
   const { connected, terminalLines, clearTerminal } = useSocket();
   const { createDocument, openInGoogleDocs, isCreating } = useGDocs();
   const { processes, fetchProcesses } = useProcessStore();
 
-  // ---- Resizable panel ----
+  // ---- Resizable panels ----
   const [leftPanelPercent, setLeftPanelPercent] = useState(100);
   const [rightPanelVisible, setRightPanelVisible] = useState(false);
   const isDragging = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Inner split: PDF | GDocs within the viewer area
+  const [innerSplitPercent, setInnerSplitPercent] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("inner-split-percent");
+      return saved ? Number(saved) : 50;
+    }
+    return 50;
+  });
+  const innerSplitRef = useRef(innerSplitPercent);
+  innerSplitRef.current = innerSplitPercent;
+  const isInnerDragging = useRef(false);
+  const viewerRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = useCallback(() => {
     isDragging.current = true;
@@ -100,18 +115,36 @@ export default function ProcessoPage({
     document.body.style.userSelect = "none";
   }, []);
 
+  const handleInnerMouseDown = useCallback(() => {
+    isInnerDragging.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, []);
+
   useEffect(() => {
     function handleMouseMove(e: MouseEvent) {
-      if (!isDragging.current || !containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const percent = ((e.clientX - rect.left) / rect.width) * 100;
-      setLeftPanelPercent(Math.min(85, Math.max(25, percent)));
+      if (isDragging.current && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        const percent = ((e.clientX - rect.left) / rect.width) * 100;
+        setLeftPanelPercent(Math.min(85, Math.max(25, percent)));
+      }
+      if (isInnerDragging.current && viewerRef.current) {
+        const rect = viewerRef.current.getBoundingClientRect();
+        const percent = ((e.clientX - rect.left) / rect.width) * 100;
+        setInnerSplitPercent(Math.min(75, Math.max(20, percent)));
+      }
     }
     function handleMouseUp() {
       if (isDragging.current) {
         isDragging.current = false;
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
+      }
+      if (isInnerDragging.current) {
+        isInnerDragging.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        localStorage.setItem("inner-split-percent", String(innerSplitRef.current));
       }
     }
     document.addEventListener("mousemove", handleMouseMove);
@@ -242,203 +275,230 @@ export default function ProcessoPage({
                 documents={data.documents}
                 onSelectDocument={(doc) => {
                   if (doc.type === "pdf") {
-                    setSelectedPdfPath(doc.path); setSelectedGDocsId(null); setSelectedFile(null);
+                    // PDF: seta PDF sem limpar editor (coexistem lado a lado)
+                    setSelectedPdfPath(doc.path);
                   } else if (doc.gdocsId) {
-                    setSelectedGDocsId(doc.gdocsId); setSelectedPdfPath(null); setSelectedFile(null);
+                    // Peça com GDocs: troca o editor
+                    setSelectedGDocsId(doc.gdocsId); setSelectedFile(null);
                   } else if (doc.name.endsWith(".md")) {
-                    setSelectedFile(doc); setSelectedPdfPath(null); setSelectedGDocsId(null);
+                    setSelectedFile(doc); setSelectedGDocsId(null);
                     fetch(`/api/file?path=${encodeURIComponent(doc.path)}`)
                       .then((r) => r.json())
                       .then((d) => setFilePreviewContent(d.content ?? "Erro"))
                       .catch(() => setFilePreviewContent("Erro ao carregar"));
                   } else {
-                    setSelectedFile(doc); setSelectedPdfPath(null); setSelectedGDocsId(null); setFilePreviewContent(null);
+                    setSelectedFile(doc); setSelectedGDocsId(null); setFilePreviewContent(null);
                   }
                 }}
               />
             )}
 
-            {/* Viewer area */}
-            <div className="flex-1 overflow-hidden relative min-h-0 flex flex-col">
-          {selectedPdfPath ? (
-            <div className="flex-1 overflow-hidden">
-              <PdfViewer
-                filePath={selectedPdfPath}
-                onClose={() => setSelectedPdfPath(null)}
-              />
-            </div>
-          ) : selectedFile && !selectedGDocsId ? (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30 shrink-0">
-                <span className="text-xs font-medium truncate">{selectedFile.name}</span>
-                <div className="flex gap-1">
-                  {selectedFile.name.endsWith(".docx") && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="h-6 text-xs gap-1"
-                      disabled={isCreating}
-                      onClick={async () => {
-                        const docName = selectedFile.name.replace(/\.docx$/, "");
-                        const res = await fetch("/api/gdocs/migrate", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            processNumber,
-                            filePath: selectedFile.path,
-                            documentName: docName,
-                          }),
-                        });
-                        const result = await res.json();
-                        if (result.gdocsId) {
-                          setSelectedGDocsId(result.gdocsId);
-                          setSelectedFile(null);
-                          const refreshRes = await fetch(`/api/processes/${encodeURIComponent(processNumber)}`);
-                          setData(await refreshRes.json());
-                        } else {
-                          alert(result.error || "Erro na migração");
-                        }
-                      }}
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Migrar para Google Docs
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost" size="sm" className="h-6 text-xs"
-                    onClick={() => { setSelectedFile(null); setFilePreviewContent(null); }}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-              {filePreviewContent ? (
-                <ScrollArea className="flex-1 p-4">
-                  <pre className="text-xs font-mono whitespace-pre-wrap break-words">{filePreviewContent}</pre>
-                </ScrollArea>
-              ) : selectedFile.name.endsWith(".docx") ? (
-                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-                  <div className="text-center">
-                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                    <p>Arquivo .docx sem Google Docs vinculado</p>
-                    <p className="text-xs mt-1">Clique em &quot;Migrar para Google Docs&quot; para editar online</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-                  Carregando...
-                </div>
-              )}
-            </div>
-          ) : selectedGDocsId ? (
-            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-              <GDocsPreview gdocsId={selectedGDocsId} />
-            </div>
-          ) : (
-            <ScrollArea className="flex-1">
-              <div className="p-4 space-y-4">
-                {indices.length > 0 && (
-                  <div>
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Índices</h3>
-                    {indices.map((doc) => (
-                      <div key={doc.name} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-accent text-sm">
-                        <BookOpen className="h-4 w-4 text-green-500 shrink-0" />
-                        <span className="truncate">{doc.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div>
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Autos (PDFs)</h3>
-                  {pdfs.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhum PDF</p>
-                  ) : (
-                    pdfs.map((doc) => (
-                      <div
-                        key={doc.name}
-                        className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-accent text-sm cursor-pointer"
-                        onClick={() => { setSelectedPdfPath(doc.path); setSelectedGDocsId(null); setSelectedFile(null); }}
-                      >
-                        <FolderOpen className="h-4 w-4 text-red-400 shrink-0" />
-                        <span className="truncate text-xs">{doc.name}</span>
-                        <span className="text-xs text-muted-foreground shrink-0">{formatBytes(doc.sizeBytes)}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                <Separator />
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xs font-semibold text-muted-foreground uppercase">Peças</h3>
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleNewPeca} disabled={isCreating}>
-                      <Plus className="h-3 w-3" />
-                      Nova Peça
-                    </Button>
-                  </div>
-                  {pecas.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhuma peça</p>
-                  ) : (
-                    pecas.map((doc) => (
-                      <div key={doc.name} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-accent text-sm cursor-pointer"
-                        onClick={async () => {
-                          if (doc.gdocsId) {
-                            setSelectedGDocsId(doc.gdocsId); setSelectedPdfPath(null); setSelectedFile(null);
-                          } else if (doc.name.endsWith(".md")) {
-                            setSelectedFile(doc); setSelectedPdfPath(null); setSelectedGDocsId(null);
-                            try {
-                              const res = await fetch(`/api/file?path=${encodeURIComponent(doc.path)}`);
-                              const d = await res.json();
-                              setFilePreviewContent(d.content ?? "Erro ao carregar");
-                            } catch { setFilePreviewContent("Erro ao carregar arquivo"); }
-                          } else {
-                            setSelectedFile(doc); setSelectedPdfPath(null); setSelectedGDocsId(null); setFilePreviewContent(null);
-                          }
-                        }}
-                      >
-                        <FileText className="h-4 w-4 text-blue-400 shrink-0" />
-                        <span className="truncate">{doc.name}</span>
-                        {doc.gdocsId && (
-                          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0"
-                            onClick={(e) => { e.stopPropagation(); openInGoogleDocs(doc.gdocsId!); }}
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
-                        )}
-                        <span className="text-xs text-muted-foreground shrink-0">{formatBytes(doc.sizeBytes)}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {notes.length > 0 && (
+            {/* Viewer area — split horizontal: PDF (condicional) | GDocs (sempre visível) */}
+            <div className="flex-1 overflow-hidden relative min-h-0 flex flex-col" ref={viewerRef}>
+              <div className="flex-1 flex overflow-hidden min-h-0">
+                {/* PDF Pane — aparece à esquerda quando um PDF está selecionado */}
+                {selectedPdfPath && (selectedGDocsId || selectedFile) && (
                   <>
-                    <Separator />
-                    <div>
-                      <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Notas</h3>
-                      {notes.map((doc) => (
-                        <div key={doc.name} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-accent text-sm">
-                          <FileText className="h-4 w-4 text-amber-400 shrink-0" />
-                          <span className="truncate">{doc.name}</span>
-                        </div>
-                      ))}
+                    <div
+                      className="overflow-hidden flex flex-col"
+                      style={{ width: `${innerSplitPercent}%` }}
+                    >
+                      <PdfViewer
+                        filePath={selectedPdfPath}
+                        onClose={() => setSelectedPdfPath(null)}
+                      />
                     </div>
+                    <div
+                      className="w-1 bg-border hover:bg-primary/30 cursor-col-resize shrink-0 transition-colors active:bg-primary/50"
+                      onMouseDown={handleInnerMouseDown}
+                    />
                   </>
                 )}
-              </div>
-            </ScrollArea>
-          )}
 
-          {/* AI Bar — only when a document is open */}
-          {hasPreview && (
-            <AiBar
-              processNumber={processNumber}
-              gdocsId={selectedGDocsId ?? undefined}
-              onSlashCommand={handleSlashCommand}
-            />
-          )}
+                {/* PDF sozinho (sem editor aberto) */}
+                {selectedPdfPath && !selectedGDocsId && !selectedFile && (
+                  <div className="flex-1 overflow-hidden">
+                    <PdfViewer
+                      filePath={selectedPdfPath}
+                      onClose={() => setSelectedPdfPath(null)}
+                    />
+                  </div>
+                )}
+
+                {/* Editor / File preview / Document list pane */}
+                {selectedFile && !selectedGDocsId ? (
+                  <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+                    <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30 shrink-0">
+                      <span className="text-xs font-medium truncate">{selectedFile.name}</span>
+                      <div className="flex gap-1">
+                        {selectedFile.name.endsWith(".docx") && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-6 text-xs gap-1"
+                            disabled={isCreating}
+                            onClick={async () => {
+                              const docName = selectedFile.name.replace(/\.docx$/, "");
+                              const res = await fetch("/api/gdocs/migrate", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  processNumber,
+                                  filePath: selectedFile.path,
+                                  documentName: docName,
+                                }),
+                              });
+                              const result = await res.json();
+                              if (result.gdocsId) {
+                                setSelectedGDocsId(result.gdocsId);
+                                setSelectedFile(null);
+                                const refreshRes = await fetch(`/api/processes/${encodeURIComponent(processNumber)}`);
+                                setData(await refreshRes.json());
+                              } else {
+                                alert(result.error || "Erro na migração");
+                              }
+                            }}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Migrar para Google Docs
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost" size="sm" className="h-6 text-xs"
+                          onClick={() => { setSelectedFile(null); setFilePreviewContent(null); }}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    {filePreviewContent ? (
+                      <ScrollArea className="flex-1 p-4">
+                        <pre className="text-xs font-mono whitespace-pre-wrap break-words">{filePreviewContent}</pre>
+                      </ScrollArea>
+                    ) : selectedFile.name.endsWith(".docx") ? (
+                      <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                        <div className="text-center">
+                          <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                          <p>Arquivo .docx sem Google Docs vinculado</p>
+                          <p className="text-xs mt-1">Clique em &quot;Migrar para Google Docs&quot; para editar online</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                        Carregando...
+                      </div>
+                    )}
+                  </div>
+                ) : selectedGDocsId ? (
+                  <div className="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0">
+                    <GDocsPreview gdocsId={selectedGDocsId} />
+                  </div>
+                ) : !selectedPdfPath ? (
+                  <ScrollArea className="flex-1">
+                    <div className="p-4 space-y-4">
+                      {indices.length > 0 && (
+                        <div>
+                          <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Índices</h3>
+                          {indices.map((doc) => (
+                            <div key={doc.name} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-accent text-sm">
+                              <BookOpen className="h-4 w-4 text-green-500 shrink-0" />
+                              <span className="truncate">{doc.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div>
+                        <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Autos (PDFs)</h3>
+                        {pdfs.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">Nenhum PDF</p>
+                        ) : (
+                          pdfs.map((doc) => (
+                            <div
+                              key={doc.name}
+                              className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-accent text-sm cursor-pointer"
+                              onClick={() => { setSelectedPdfPath(doc.path); }}
+                            >
+                              <FolderOpen className="h-4 w-4 text-red-400 shrink-0" />
+                              <span className="truncate text-xs">{doc.name}</span>
+                              <span className="text-xs text-muted-foreground shrink-0">{formatBytes(doc.sizeBytes)}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      <Separator />
+
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-xs font-semibold text-muted-foreground uppercase">Peças</h3>
+                          <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={handleNewPeca} disabled={isCreating}>
+                            <Plus className="h-3 w-3" />
+                            Nova Peça
+                          </Button>
+                        </div>
+                        {pecas.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">Nenhuma peça</p>
+                        ) : (
+                          pecas.map((doc) => (
+                            <div key={doc.name} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-accent text-sm cursor-pointer"
+                              onClick={async () => {
+                                if (doc.gdocsId) {
+                                  setSelectedGDocsId(doc.gdocsId); setSelectedFile(null);
+                                } else if (doc.name.endsWith(".md")) {
+                                  setSelectedFile(doc); setSelectedGDocsId(null);
+                                  try {
+                                    const res = await fetch(`/api/file?path=${encodeURIComponent(doc.path)}`);
+                                    const d = await res.json();
+                                    setFilePreviewContent(d.content ?? "Erro ao carregar");
+                                  } catch { setFilePreviewContent("Erro ao carregar arquivo"); }
+                                } else {
+                                  setSelectedFile(doc); setSelectedGDocsId(null); setFilePreviewContent(null);
+                                }
+                              }}
+                            >
+                              <FileText className="h-4 w-4 text-blue-400 shrink-0" />
+                              <span className="truncate">{doc.name}</span>
+                              {doc.gdocsId && (
+                                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0"
+                                  onClick={(e) => { e.stopPropagation(); openInGoogleDocs(doc.gdocsId!); }}
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                </Button>
+                              )}
+                              <span className="text-xs text-muted-foreground shrink-0">{formatBytes(doc.sizeBytes)}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {notes.length > 0 && (
+                        <>
+                          <Separator />
+                          <div>
+                            <h3 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Notas</h3>
+                            {notes.map((doc) => (
+                              <div key={doc.name} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-accent text-sm">
+                                <FileText className="h-4 w-4 text-amber-400 shrink-0" />
+                                <span className="truncate">{doc.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </ScrollArea>
+                ) : null}
+              </div>
+
+              {/* AI Bar — when editor or any document is open */}
+              {hasPreview && (
+                <AiBar
+                  processNumber={processNumber}
+                  gdocsId={selectedGDocsId ?? undefined}
+                  onSlashCommand={handleSlashCommand}
+                />
+              )}
             </div>{/* close viewer area */}
 
             {/* Index sidebar — direita */}

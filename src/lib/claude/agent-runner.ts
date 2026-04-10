@@ -54,19 +54,24 @@ export async function executeAgent(config: AgentRunConfig): Promise<AgentRunResu
       includeDocument: true,
     });
 
-    const prompt = config.prompt
-      ? assemblePrompt(context, config.prompt)
-      : assemblePrompt(context, `Execute a análise conforme seu papel de ${config.agentName}.`);
+    const processDir = path.join(CLAUDE_DOCS_PATH, "processos", config.processNumber);
+    const processInfo = `\n\n[Processo: ${config.processNumber}. Pasta: processos/${config.processNumber}/. Peças em: processos/${config.processNumber}/pecas/. Autos/PDFs em: processos/${config.processNumber}/docs/ e raiz. Scripts em: scripts/.]`;
 
-    // Determine working directory
-    const cwd = path.join(CLAUDE_DOCS_PATH, "processos", config.processNumber);
+    const prompt = config.prompt
+      ? assemblePrompt(context, config.prompt + processInfo)
+      : assemblePrompt(context, `Execute a análise conforme seu papel de ${config.agentName}.` + processInfo);
+
+    // cwd must be ClaudeDocs root so Claude Code finds .claude/agents/, scripts/, CLAUDE.md, rules, etc.
+    const cwd = CLAUDE_DOCS_PATH;
 
     // Build CLI args
     const args = [
       "--print",
       "--output-format", "text",
+      "--permission-mode", "acceptEdits",
       "--allowedTools", "Edit", "Write", "Read", "Bash", "Glob", "Grep",
       "WebFetch", "WebSearch", "Agent",
+      "--add-dir", processDir,
     ];
 
     // Use agent if it's a known agent name
