@@ -30,20 +30,14 @@ export function GDocsPreview({
   }
 
   return (
-    <div className="relative" style={{ flex: "1 1 0%", minHeight: 0 }}>
-      <iframe
-        src={embedUrl}
-        className={`w-full h-full border-0 ${expanded ? "fixed inset-0 z-50" : ""}`}
-        title="Google Docs Editor"
-        onError={() => setIframeError(true)}
-        allow="clipboard-read; clipboard-write"
-      />
-      {/* Cover the Google Docs floating action buttons (comment/emoji/suggest) on the right edge */}
-      <div
-        className="absolute top-0 right-0 z-10"
-        style={{ width: "56px", height: "100%", background: "white" }}
-      />
-    </div>
+    <iframe
+      src={embedUrl}
+      className={`w-full border-0 ${expanded ? "fixed inset-0 z-50" : ""}`}
+      style={{ flex: "1 1 0%", minHeight: 0 }}
+      title="Google Docs Editor"
+      onError={() => setIframeError(true)}
+      allow="clipboard-read; clipboard-write"
+    />
   );
 }
 
