@@ -36,20 +36,33 @@ export default function ProcessoPage({
   const { id } = use(params);
   const processNumber = decodeURIComponent(id);
   const [data, setData] = useState<ProcessData | null>(null);
-  const [selectedGDocsId, setSelectedGDocsId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(`doc-gdocs-${processNumber}`);
-  });
-  const [selectedPdfPath, setSelectedPdfPath] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(`doc-pdf-${processNumber}`);
-  });
-  const [selectedFile, setSelectedFile] = useState<ProcessDocument | null>(() => {
-    if (typeof window === "undefined") return null;
-    const stored = localStorage.getItem(`doc-file-${processNumber}`);
-    return stored ? JSON.parse(stored) : null;
-  });
+  const [selectedGDocsId, setSelectedGDocsId] = useState<string | null>(null);
+  const [selectedPdfPath, setSelectedPdfPath] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<ProcessDocument | null>(null);
   const [filePreviewContent, setFilePreviewContent] = useState<string | null>(null);
+
+  // Restore selected document from localStorage on mount
+  useEffect(() => {
+    const gdocs = localStorage.getItem(`doc-gdocs-${processNumber}`);
+    const pdf = localStorage.getItem(`doc-pdf-${processNumber}`);
+    const file = localStorage.getItem(`doc-file-${processNumber}`);
+    if (gdocs) {
+      setSelectedGDocsId(gdocs);
+    } else if (pdf) {
+      setSelectedPdfPath(pdf);
+    } else if (file) {
+      try {
+        const parsed = JSON.parse(file);
+        setSelectedFile(parsed);
+        if (parsed.name?.endsWith(".md")) {
+          fetch(`/api/file?path=${encodeURIComponent(parsed.path)}`)
+            .then((r) => r.json())
+            .then((d) => setFilePreviewContent(d.content ?? "Erro"))
+            .catch(() => setFilePreviewContent("Erro ao carregar"));
+        }
+      } catch { /* ignore */ }
+    }
+  }, [processNumber]);
 
   // Persist selected document to localStorage
   useEffect(() => {
@@ -115,14 +128,7 @@ export default function ProcessoPage({
       .then((res) => res.json())
       .then(setData);
     fetchProcesses();
-    // Load .md content if restored from localStorage
-    if (selectedFile && selectedFile.name.endsWith(".md") && !filePreviewContent) {
-      fetch(`/api/file?path=${encodeURIComponent(selectedFile.path)}`)
-        .then((r) => r.json())
-        .then((d) => setFilePreviewContent(d.content ?? "Erro"))
-        .catch(() => setFilePreviewContent("Erro ao carregar"));
-    }
-  }, [processNumber, fetchProcesses]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [processNumber, fetchProcesses]);
 
   const pdfs = data?.documents.filter((d) => d.type === "pdf") ?? [];
   const pecas = data?.documents.filter((d) => d.type === "peca") ?? [];
