@@ -3,8 +3,9 @@ import { listProcesses } from "@/lib/filesystem/processes";
 import { logAudit } from "@/lib/db/audit";
 import fs from "fs";
 import path from "path";
+import { getClaudeDocsPath } from "@/lib/config";
 
-const CLAUDE_DOCS_PATH = process.env.CLAUDE_DOCS_PATH ?? "";
+const CLAUDE_DOCS_PATH = getClaudeDocsPath();
 
 export async function GET() {
   const processes = listProcesses();

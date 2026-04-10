@@ -3,8 +3,9 @@ import { logAudit } from "@/lib/db/audit";
 import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
+import { getClaudeDocsPath } from "@/lib/config";
 
-const CLAUDE_DOCS_PATH = process.env.CLAUDE_DOCS_PATH ?? "";
+const CLAUDE_DOCS_PATH = getClaudeDocsPath();
 const GDRIVE_PATH = process.env.GDRIVE_PETICIONAMENTO_PATH ?? "";
 
 /**

@@ -3,8 +3,9 @@ import { uploadDocxAsGoogleDoc, createOrGetFolder } from "@/lib/gdocs/client";
 import { logAudit } from "@/lib/db/audit";
 import fs from "fs";
 import path from "path";
+import { getClaudeDocsPath } from "@/lib/config";
 
-const CLAUDE_DOCS_PATH = process.env.CLAUDE_DOCS_PATH ?? "";
+const CLAUDE_DOCS_PATH = getClaudeDocsPath();
 
 export async function POST(request: NextRequest) {
   const { processNumber, filePath, documentName } = await request.json();

@@ -1,8 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { getDocumentAsAnnotatedText } from "@/lib/gdocs/client";
-
-const CLAUDE_DOCS_PATH = process.env.CLAUDE_DOCS_PATH ?? "";
+import { getClaudeDocsPath } from "@/lib/config";
 
 export interface PromptContext {
   systemPrompt: string;
@@ -14,7 +13,7 @@ export interface PromptContext {
  * Carrega o CLAUDE.md raiz do repositório ClaudeDocs.
  */
 function loadClaudeMd(): string {
-  const claudeMdPath = path.join(CLAUDE_DOCS_PATH, "CLAUDE.md");
+  const claudeMdPath = path.join(getClaudeDocsPath(), "CLAUDE.md");
   if (!fs.existsSync(claudeMdPath)) return "";
   return fs.readFileSync(claudeMdPath, "utf-8");
 }
@@ -23,7 +22,7 @@ function loadClaudeMd(): string {
  * Carrega o índice do processo (EPROC ou Único), se existir.
  */
 function loadIndex(processNumber: string): string {
-  const docsDir = path.join(CLAUDE_DOCS_PATH, "processos", processNumber, "docs");
+  const docsDir = path.join(getClaudeDocsPath(), "processos", processNumber, "docs");
 
   for (const indexFile of ["indice-eproc.md", "indice-unico.md"]) {
     const indexPath = path.join(docsDir, indexFile);
@@ -38,7 +37,7 @@ function loadIndex(processNumber: string): string {
  * Carrega notas do processo, se existirem.
  */
 function loadNotes(processNumber: string): string {
-  const processDir = path.join(CLAUDE_DOCS_PATH, "processos", processNumber);
+  const processDir = path.join(getClaudeDocsPath(), "processos", processNumber);
   const notes: string[] = [];
 
   const entries = fs.readdirSync(processDir).filter((f) => f.startsWith("notas") && f.endsWith(".md"));
@@ -54,7 +53,7 @@ function loadNotes(processNumber: string): string {
  * Carrega .gdocs-meta.json do processo.
  */
 function loadGdocsMeta(processNumber: string): Record<string, { gdocsId: string }> {
-  const metaPath = path.join(CLAUDE_DOCS_PATH, "processos", processNumber, ".gdocs-meta.json");
+  const metaPath = path.join(getClaudeDocsPath(), "processos", processNumber, ".gdocs-meta.json");
   if (!fs.existsSync(metaPath)) return {};
   try {
     return JSON.parse(fs.readFileSync(metaPath, "utf-8"));

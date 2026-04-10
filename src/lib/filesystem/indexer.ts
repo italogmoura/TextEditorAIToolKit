@@ -1,7 +1,8 @@
 import { spawn } from "child_process";
 import path from "path";
+import { getClaudeDocsPath } from "@/lib/config";
 
-const CLAUDE_DOCS_PATH = process.env.CLAUDE_DOCS_PATH ?? "";
+const CLAUDE_DOCS_PATH = getClaudeDocsPath();
 
 export type IndexerType = "eproc" | "unico";
 

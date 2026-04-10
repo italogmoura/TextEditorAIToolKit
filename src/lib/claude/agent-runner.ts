@@ -5,8 +5,7 @@ import { StreamBuffer, type StreamEvent } from "./stream-parser";
 import { db } from "@/lib/db/client";
 import { agentRuns } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-
-const CLAUDE_DOCS_PATH = process.env.CLAUDE_DOCS_PATH ?? "";
+import { getClaudeDocsPath } from "@/lib/config";
 
 // Track running processes for cleanup
 const runningProcesses = new Map<string, ChildProcess>();
@@ -47,6 +46,7 @@ export async function executeAgent(config: AgentRunConfig): Promise<AgentRunResu
   });
 
   try {
+    const CLAUDE_DOCS_PATH = getClaudeDocsPath();
     // Build context with GDocs content
     const context = await buildPromptContext({
       processNumber: config.processNumber,

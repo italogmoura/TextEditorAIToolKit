@@ -7,8 +7,9 @@ import {
 import { logAudit } from "@/lib/db/audit";
 import fs from "fs";
 import path from "path";
+import { getClaudeDocsPath } from "@/lib/config";
 
-const CLAUDE_DOCS_PATH = process.env.CLAUDE_DOCS_PATH ?? "";
+const CLAUDE_DOCS_PATH = getClaudeDocsPath();
 
 // POST: Create a new Google Doc for a process
 export async function POST(request: NextRequest) {

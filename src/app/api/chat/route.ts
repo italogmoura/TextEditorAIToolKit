@@ -4,8 +4,9 @@ import { buildPromptContext, assemblePrompt } from "@/lib/claude/prompt-builder"
 import { logAudit } from "@/lib/db/audit";
 import fs from "fs";
 import path from "path";
+import { getClaudeDocsPath } from "@/lib/config";
 
-const CLAUDE_DOCS_PATH = process.env.CLAUDE_DOCS_PATH ?? "";
+const CLAUDE_DOCS_PATH = getClaudeDocsPath();
 
 export async function POST(request: NextRequest) {
   const { processNumber, message, gdocsId } = await request.json();

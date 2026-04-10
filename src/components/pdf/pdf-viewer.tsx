@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, X } from "lucide-react";
 import dynamic from "next/dynamic";
@@ -32,6 +32,22 @@ export function PdfViewer({
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(highlightPage ?? 1);
   const [scale, setScale] = useState(1.0);
+  const [containerWidth, setContainerWidth] = useState<number | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Observe container width to fit PDF page to available space
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        // Subtract padding (2 * 16px = 32px)
+        setContainerWidth(entry.contentRect.width - 32);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const pdfUrl = `/api/pdf?path=${encodeURIComponent(filePath)}`;
 
@@ -75,7 +91,7 @@ export function PdfViewer({
       </div>
 
       {/* PDF content */}
-      <div className="flex-1 overflow-auto flex justify-center p-4">
+      <div className="flex-1 overflow-auto flex justify-center p-4" ref={contentRef}>
         <Document
           file={pdfUrl}
           onLoadSuccess={({ numPages: n }: { numPages: number }) => {
@@ -93,7 +109,11 @@ export function PdfViewer({
             </div>
           }
         >
-          <Page pageNumber={currentPage} scale={scale} />
+          <Page
+            pageNumber={currentPage}
+            width={containerWidth ? containerWidth * scale : undefined}
+            scale={containerWidth ? undefined : scale}
+          />
         </Document>
       </div>
     </div>

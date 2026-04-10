@@ -1,6 +1,7 @@
 import path from "path";
+import { getClaudeDocsPath } from "@/lib/config";
 
-const CLAUDE_DOCS_PATH = process.env.CLAUDE_DOCS_PATH ?? "";
+const CLAUDE_DOCS_PATH = getClaudeDocsPath();
 const PROCESSOS_DIR = path.join(CLAUDE_DOCS_PATH, "processos");
 
 type WatchCallback = (event: "add" | "change" | "unlink", filePath: string) => void;

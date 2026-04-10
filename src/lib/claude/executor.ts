@@ -1,7 +1,6 @@
 import { spawn } from "child_process";
 import path from "path";
-
-const CLAUDE_DOCS_PATH = process.env.CLAUDE_DOCS_PATH ?? "";
+import { getClaudeDocsPath } from "@/lib/config";
 
 export interface ClaudeResult {
   output: string;
@@ -26,6 +25,7 @@ export async function runClaude(params: {
   model?: string;
   onChunk?: (text: string) => void;
 }): Promise<ClaudeResult> {
+  const CLAUDE_DOCS_PATH = getClaudeDocsPath();
   const cwd = params.cwd ?? CLAUDE_DOCS_PATH;
 
   const args = [

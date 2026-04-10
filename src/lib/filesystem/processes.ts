@@ -1,9 +1,11 @@
 import fs from "fs";
 import path from "path";
 import type { ProcessInfo, ProcessDocument, ProcessStatus } from "@/lib/types/process";
+import { getClaudeDocsPath } from "@/lib/config";
 
-const CLAUDE_DOCS_PATH = process.env.CLAUDE_DOCS_PATH ?? "";
-const PROCESSOS_DIR = path.join(CLAUDE_DOCS_PATH, "processos");
+function getProcessosDir() {
+  return path.join(getClaudeDocsPath(), "processos");
+}
 
 function getProcessStatus(processPath: string): ProcessStatus {
   const docsDir = path.join(processPath, "docs");
@@ -38,16 +40,16 @@ function getProcessStatus(processPath: string): ProcessStatus {
 }
 
 export function listProcesses(): ProcessInfo[] {
-  if (!fs.existsSync(PROCESSOS_DIR)) {
+  if (!fs.existsSync(getProcessosDir())) {
     return [];
   }
 
-  const entries = fs.readdirSync(PROCESSOS_DIR, { withFileTypes: true });
+  const entries = fs.readdirSync(getProcessosDir(), { withFileTypes: true });
 
   return entries
     .filter((e) => e.isDirectory() && !e.name.startsWith("."))
     .map((e) => {
-      const processPath = path.join(PROCESSOS_DIR, e.name);
+      const processPath = path.join(getProcessosDir(), e.name);
       const pecasDir = path.join(processPath, "pecas");
 
       const pecasCount = fs.existsSync(pecasDir)
@@ -79,7 +81,7 @@ export function listProcesses(): ProcessInfo[] {
 }
 
 export function getProcessDocuments(processNumber: string): ProcessDocument[] {
-  const processPath = path.join(PROCESSOS_DIR, processNumber);
+  const processPath = path.join(getProcessosDir(), processNumber);
   if (!fs.existsSync(processPath)) return [];
 
   const documents: ProcessDocument[] = [];
