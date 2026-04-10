@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Sparkles, X, Check, Bot, Loader2 } from "lucide-react";
+import { Send, Sparkles, X, Check, Bot, Loader2, FileText } from "lucide-react";
 import { useChatStore } from "@/stores/chat-store";
 
 const SLASH_COMMANDS = [
@@ -26,6 +26,8 @@ export function AiBar({
   const [value, setValue] = useState("");
   const [showSlash, setShowSlash] = useState(false);
   const [selectedCmd, setSelectedCmd] = useState(0);
+  const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; path: string }>>([]);
+  const [dragOver, setDragOver] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { messages, isLoading, sendMessage } = useChatStore();
 
@@ -51,8 +53,12 @@ export function AiBar({
       if (cmd) { onSlashCommand(cmd.command); setValue(""); return; }
     }
 
-    sendMessage(processNumber, value.trim(), gdocsId);
+    const fileContext = attachedFiles.length > 0
+      ? `\n\n[Arquivos de referência: ${attachedFiles.map((f) => f.name).join(", ")}]`
+      : "";
+    sendMessage(processNumber, value.trim() + fileContext, gdocsId);
     setValue("");
+    setAttachedFiles([]);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -163,22 +169,61 @@ export function AiBar({
       )}
 
       {/* Input bar — fixed at bottom */}
-      <div className="w-full max-w-2xl mx-auto px-3 pb-3 pointer-events-auto">
+      <div
+        className="w-full max-w-2xl mx-auto px-3 pb-3 pointer-events-auto"
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const docName = e.dataTransfer.getData("application/x-doc-name");
+          const docPath = e.dataTransfer.getData("application/x-doc-path");
+          if (docName && docPath) {
+            setAttachedFiles((prev) => {
+              if (prev.some((f) => f.path === docPath)) return prev;
+              return [...prev, { name: docName, path: docPath }];
+            });
+            setFocused(true);
+            textareaRef.current?.focus();
+          }
+        }}
+      >
         <div
           className="transition-all duration-200"
           style={{
-            borderRadius: focused ? "16px" : "24px",
-            border: focused ? "2px solid #7c3aed" : "1px solid rgba(0,0,0,0.08)",
-            background: "rgba(255,255,255,0.95)",
+            borderRadius: focused || dragOver ? "16px" : "24px",
+            border: dragOver ? "2px dashed #7c3aed" : focused ? "2px solid #7c3aed" : "1px solid rgba(0,0,0,0.08)",
+            background: dragOver ? "rgba(124,58,237,0.04)" : "rgba(255,255,255,0.95)",
             backdropFilter: "blur(16px)",
             boxShadow: focused
               ? "0 4px 24px rgba(124,58,237,0.12), 0 0 0 3px rgba(124,58,237,0.08)"
               : "0 2px 12px rgba(0,0,0,0.06)",
-            padding: focused ? "12px" : "6px 6px 6px 16px",
+            padding: focused || attachedFiles.length > 0 ? "12px" : "6px 6px 6px 16px",
           }}
         >
+          {/* Attached file tags */}
+          {attachedFiles.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {attachedFiles.map((f) => (
+                <span
+                  key={f.path}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                  style={{ background: "#ede9fe", color: "#6d28d9" }}
+                >
+                  <FileText className="h-2.5 w-2.5" />
+                  {f.name}
+                  <button
+                    onClick={() => setAttachedFiles((prev) => prev.filter((x) => x.path !== f.path))}
+                    className="hover:text-red-600 ml-0.5"
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           <div className="flex items-end gap-2">
-            {!focused && <Sparkles className="h-4 w-4 text-zinc-300 shrink-0 mb-1" />}
+            {!focused && attachedFiles.length === 0 && <Sparkles className="h-4 w-4 text-zinc-300 shrink-0 mb-1" />}
             <textarea
               ref={textareaRef}
               value={value}

@@ -21,6 +21,7 @@ import { useSocket } from "@/hooks/use-socket";
 import { useGDocs } from "@/hooks/use-gdocs";
 import { CommandPalette } from "@/components/command-palette/command-palette";
 import { useProcessStore } from "@/stores/process-store";
+import { DocSidebar } from "@/components/layout/doc-sidebar";
 
 interface ProcessData {
   processNumber: string;
@@ -167,7 +168,32 @@ export default function ProcessoPage({
           style={{ width: `${leftPanelPercent}%` }}
         >
 
-          {/* Content area */}
+          {/* Content area with optional sidebar */}
+          <div className="flex-1 flex overflow-hidden">
+            {/* Doc sidebar — visible when a document is open */}
+            {hasPreview && data && (
+              <DocSidebar
+                documents={data.documents}
+                onSelectDocument={(doc) => {
+                  if (doc.type === "pdf") {
+                    setSelectedPdfPath(doc.path); setSelectedGDocsId(null); setSelectedFile(null);
+                  } else if (doc.gdocsId) {
+                    setSelectedGDocsId(doc.gdocsId); setSelectedPdfPath(null); setSelectedFile(null);
+                  } else if (doc.name.endsWith(".md")) {
+                    setSelectedFile(doc); setSelectedPdfPath(null); setSelectedGDocsId(null);
+                    fetch(`/api/file?path=${encodeURIComponent(doc.path)}`)
+                      .then((r) => r.json())
+                      .then((d) => setFilePreviewContent(d.content ?? "Erro"))
+                      .catch(() => setFilePreviewContent("Erro ao carregar"));
+                  } else {
+                    setSelectedFile(doc); setSelectedPdfPath(null); setSelectedGDocsId(null); setFilePreviewContent(null);
+                  }
+                }}
+              />
+            )}
+
+            {/* Viewer area */}
+            <div className="flex-1 overflow-hidden relative">
           {selectedPdfPath ? (
             <div className="flex-1 overflow-hidden">
               <PdfViewer
@@ -365,12 +391,16 @@ export default function ProcessoPage({
             </ScrollArea>
           )}
 
-          {/* AI Bar — fixed at bottom of editor, Tiptap style */}
-          <AiBar
-            processNumber={processNumber}
-            gdocsId={selectedGDocsId ?? undefined}
-            onSlashCommand={handleSlashCommand}
-          />
+          {/* AI Bar — only when a document is open */}
+          {hasPreview && (
+            <AiBar
+              processNumber={processNumber}
+              gdocsId={selectedGDocsId ?? undefined}
+              onSlashCommand={handleSlashCommand}
+            />
+          )}
+            </div>{/* close viewer area */}
+          </div>{/* close flex container (sidebar + viewer) */}
         </div>
 
         {/* ===== RIGHT PANEL: Agentes + Terminal ===== */}
