@@ -161,9 +161,9 @@ export function AiBar({
             className="space-y-2 p-3"
             style={{
               borderRadius: "16px 16px 0 0",
-              background: "rgba(255,255,255,0.95)",
-              backdropFilter: "blur(16px)",
-              boxShadow: "0 -4px 24px rgba(0,0,0,0.06)",
+              background: "rgba(255,255,255,0.97)",
+              backdropFilter: "blur(20px)",
+              boxShadow: "0 -8px 32px rgba(0,0,0,0.12), 0 -2px 8px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04)",
             }}
           >
             {/* Close button */}
@@ -270,7 +270,7 @@ export function AiBar({
             backdropFilter: "blur(16px)",
             boxShadow: focused
               ? "0 4px 24px rgba(124,58,237,0.12), 0 0 0 3px rgba(124,58,237,0.08)"
-              : "0 2px 12px rgba(0,0,0,0.06)",
+              : "0 4px 20px rgba(0,0,0,0.1), 0 1px 6px rgba(0,0,0,0.06)",
             padding: focused || attachedFiles.length > 0 ? "12px" : "6px 6px 6px 16px",
           }}
         >
