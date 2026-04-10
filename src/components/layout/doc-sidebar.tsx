@@ -43,27 +43,7 @@ export function DocSidebar({ documents, onSelectDocument, onDragStart }: DocSide
       className="h-full flex flex-col border-r shrink-0 overflow-hidden"
       style={{ width: openSection ? "200px" : "auto", background: "rgba(250,250,250,0.8)" }}
     >
-      {/* Índice — header */}
-      <button
-        className={`w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase border-b shrink-0 transition-colors ${
-          openSection === "toc" ? "text-zinc-700 bg-zinc-100" : "text-zinc-400 hover:text-zinc-600"
-        }`}
-        onClick={() => toggle("toc")}
-      >
-        {openSection === "toc" ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-        Índice
-      </button>
-
-      {/* Índice — conteúdo (entre os dois headers) */}
-      {openSection === "toc" && (
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="px-3 py-2 text-[11px] text-zinc-400 italic">
-            Navegue pelo sumário no Google Docs
-          </div>
-        </ScrollArea>
-      )}
-
-      {/* Arquivos — header */}
+      {/* ARQUIVOS — sempre no topo */}
       <button
         className={`w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase border-b shrink-0 transition-colors ${
           openSection === "files" ? "text-zinc-700 bg-zinc-100" : "text-zinc-400 hover:text-zinc-600"
@@ -74,7 +54,6 @@ export function DocSidebar({ documents, onSelectDocument, onDragStart }: DocSide
         Arquivos
       </button>
 
-      {/* Arquivos — conteúdo (abaixo do header Arquivos) */}
       {openSection === "files" && (
         <ScrollArea className="flex-1 min-h-0">
           <div className="space-y-0.5 px-1 py-1">
@@ -97,6 +76,25 @@ export function DocSidebar({ documents, onSelectDocument, onDragStart }: DocSide
                 <span className="text-[11px] text-zinc-600 truncate">{doc.name}</span>
               </div>
             ))}
+          </div>
+        </ScrollArea>
+      )}
+
+      {/* ÍNDICE — sempre segundo */}
+      <button
+        className={`w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase border-b shrink-0 transition-colors ${
+          openSection === "toc" ? "text-zinc-700 bg-zinc-100" : "text-zinc-400 hover:text-zinc-600"
+        }`}
+        onClick={() => toggle("toc")}
+      >
+        {openSection === "toc" ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        Índice
+      </button>
+
+      {openSection === "toc" && (
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="px-3 py-2 text-[11px] text-zinc-400 italic">
+            Navegue pelo sumário no Google Docs
           </div>
         </ScrollArea>
       )}
