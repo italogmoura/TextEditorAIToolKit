@@ -160,7 +160,32 @@ export default function ProcessoPage({
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      <Header />
+      <Header>
+        <div className="flex items-center gap-2 flex-1 min-w-0 mx-3">
+          <Link href="/">
+            <Button variant="ghost" size="icon" className="h-6 w-6">
+              <ArrowLeft className="h-3 w-3" />
+            </Button>
+          </Link>
+          <span className="text-[11px] font-mono font-semibold truncate">{processNumber}</span>
+          <span className="text-[10px] text-muted-foreground shrink-0">{pdfs.length} PDFs, {pecas.length} peças</span>
+          <GDocsStatus isLocked={false} isConnected={connected} />
+          {hasPreview && (
+            <div className="flex items-center gap-0.5 ml-auto shrink-0">
+              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setLeftPanelPercent(75)} title="Editor grande">
+                <PanelLeftOpen className="h-3 w-3" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setLeftPanelPercent(50)} title="Metade">
+                <Columns2 className="h-3 w-3" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => setLeftPanelPercent(33)} title="Editor pequeno">
+                <PanelLeftClose className="h-3 w-3" />
+              </Button>
+            </div>
+          )}
+          <kbd className="px-1 py-0.5 bg-muted rounded text-[9px] font-mono text-muted-foreground shrink-0">⌘K</kbd>
+        </div>
+      </Header>
       <CommandPalette processes={processes} onCommand={handleSlashCommand} />
 
       <div className="flex-1 flex overflow-hidden" ref={containerRef}>
@@ -169,49 +194,6 @@ export default function ProcessoPage({
           className="flex flex-col overflow-hidden"
           style={{ width: panelMode === "floating" ? "100%" : `${leftPanelPercent}%` }}
         >
-          {/* Header */}
-          <div className="p-3 border-b flex items-center gap-2 shrink-0">
-            <Link href="/">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-sm font-mono font-semibold truncate">{processNumber}</h2>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {pdfs.length} PDFs, {pecas.length} peças
-                </span>
-                <GDocsStatus isLocked={false} isConnected={connected} />
-              </div>
-            </div>
-            {/* Quick size buttons */}
-            {hasPreview && (
-              <div className="flex items-center gap-0.5">
-                <Button
-                  variant="ghost" size="icon" className="h-6 w-6"
-                  onClick={() => setLeftPanelPercent(75)}
-                  title="Editor grande"
-                >
-                  <PanelLeftOpen className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost" size="icon" className="h-6 w-6"
-                  onClick={() => setLeftPanelPercent(50)}
-                  title="Metade"
-                >
-                  <Columns2 className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="ghost" size="icon" className="h-6 w-6"
-                  onClick={() => setLeftPanelPercent(33)}
-                  title="Editor pequeno"
-                >
-                  <PanelLeftClose className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            )}
-          </div>
 
           {/* Content area */}
           {selectedPdfPath ? (

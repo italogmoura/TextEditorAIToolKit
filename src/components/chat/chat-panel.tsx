@@ -2,7 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useChatStore } from "@/stores/chat-store";
 import { Message } from "./message";
 import { ChatInput } from "./input";
@@ -19,7 +19,6 @@ export function ChatPanel({
   const { messages, isLoading, sendMessage } = useChatStore();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll on new messages
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -32,18 +31,19 @@ export function ChatPanel({
 
   return (
     <div className="flex flex-col h-full">
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 px-3 py-3" ref={scrollRef}>
         <div className="space-y-3">
           {messages.length === 0 && (
-            <div className="text-center text-muted-foreground text-sm py-8">
-              <Bot className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Digite uma mensagem ou acione um agente</p>
-              <p className="text-xs mt-1">
-                Use{" "}
-                <kbd className="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">
-                  /
-                </kbd>{" "}
-                para slash commands
+            <div className="text-center py-10">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3"
+                style={{ background: "linear-gradient(135deg, #ede9fe, #ddd6fe)" }}
+              >
+                <Sparkles className="h-5 w-5 text-violet-500" />
+              </div>
+              <p className="text-sm text-zinc-400">Tell AI what needs to be changed...</p>
+              <p className="text-[11px] text-zinc-300 mt-1">
+                Use <kbd className="px-1.5 py-0.5 bg-zinc-100 rounded text-[10px] font-mono">/</kbd> for commands
               </p>
             </div>
           )}
@@ -51,9 +51,13 @@ export function ChatPanel({
             <Message key={msg.id} message={msg} />
           ))}
           {isLoading && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Bot className="h-4 w-4 animate-pulse" />
-              <span>Processando...</span>
+            <div className="flex items-center gap-2 text-sm text-zinc-400 pl-8">
+              <div className="flex gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                <div className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                <div className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+              </div>
+              <span className="text-xs">Processando...</span>
             </div>
           )}
         </div>
