@@ -193,7 +193,7 @@ export default function ProcessoPage({
             )}
 
             {/* Viewer area */}
-            <div className="flex-1 overflow-hidden relative">
+            <div className="flex-1 overflow-hidden relative min-h-0 flex flex-col">
           {selectedPdfPath ? (
             <div className="flex-1 overflow-hidden">
               <PdfViewer
@@ -265,7 +265,7 @@ export default function ProcessoPage({
               )}
             </div>
           ) : selectedGDocsId ? (
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden min-h-0">
               <GDocsPreview
                 gdocsId={selectedGDocsId}
                 processNumber={processNumber}

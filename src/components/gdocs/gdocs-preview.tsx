@@ -26,7 +26,7 @@ export function GDocsPreview({
   const embedUrl = `https://docs.google.com/document/d/${gdocsId}/edit?rm=minimal`;
 
   return (
-    <div className={`flex flex-col ${expanded ? "fixed inset-0 z-50 bg-background" : "h-full"}`}>
+    <div className={`flex flex-col min-h-0 ${expanded ? "fixed inset-0 z-50 bg-background" : "h-full"}`}>
       <div className="flex items-center justify-between px-3 py-2 border-b bg-muted/30">
         <div className="flex items-center gap-2">
           <FileText className="h-3.5 w-3.5 text-muted-foreground" />
@@ -84,7 +84,8 @@ export function GDocsPreview({
       ) : (
         <iframe
           src={embedUrl}
-          className="flex-1 w-full border-0"
+          className="w-full border-0"
+          style={{ flex: "1 1 0%", minHeight: 0 }}
           title="Google Docs Editor"
           onError={() => setIframeError(true)}
           allow="clipboard-read; clipboard-write"
