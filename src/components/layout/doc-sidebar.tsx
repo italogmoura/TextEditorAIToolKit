@@ -89,22 +89,57 @@ export function FilesSidebar({ documents, onSelectDocument }: SidebarProps) {
   );
 }
 
+interface OutlineItem {
+  level: number;
+  text: string;
+  index: number;
+}
+
 /**
- * Sidebar direita — Índice/sumário do documento
+ * Sidebar direita — Índice/sumário do documento (extraído dos headings do Google Docs)
  */
-export function IndexSidebar() {
+export function IndexSidebar({ gdocsId }: { gdocsId?: string }) {
   const [open, setOpen] = useState(false);
+  const [outline, setOutline] = useState<OutlineItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadedDocId, setLoadedDocId] = useState<string | null>(null);
+
+  async function loadOutline() {
+    if (!gdocsId || loadedDocId === gdocsId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/gdocs/outline?docId=${gdocsId}`);
+      const data = await res.json();
+      setOutline(data.outline ?? []);
+      setLoadedDocId(gdocsId);
+    } catch {
+      setOutline([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleToggle() {
+    const next = !open;
+    setOpen(next);
+    if (next) loadOutline();
+  }
+
+  // Reload if gdocsId changes while open
+  if (open && gdocsId && gdocsId !== loadedDocId && !loading) {
+    loadOutline();
+  }
 
   return (
     <div
       className="h-full flex flex-col border-l shrink-0 overflow-hidden"
-      style={{ width: open ? "180px" : "auto", background: "rgba(250,250,250,0.8)" }}
+      style={{ width: open ? "200px" : "auto", background: "rgba(250,250,250,0.8)" }}
     >
       <button
         className={`flex items-center gap-1.5 px-2 py-2 text-[10px] font-semibold uppercase border-b shrink-0 transition-colors ${
           open ? "text-zinc-700 bg-zinc-100" : "text-zinc-400 hover:text-zinc-600"
         }`}
-        onClick={() => setOpen(!open)}
+        onClick={handleToggle}
         title="Índice do documento"
       >
         {open ? <ChevronDown className="h-3 w-3" /> : <PanelRight className="h-3 w-3" />}
@@ -113,9 +148,28 @@ export function IndexSidebar() {
 
       {open && (
         <ScrollArea className="flex-1 min-h-0">
-          <div className="px-3 py-2 text-[11px] text-zinc-400 italic">
-            Navegue pelo sumário no Google Docs
-          </div>
+          {loading ? (
+            <div className="px-3 py-3 text-[11px] text-zinc-400">Carregando...</div>
+          ) : outline.length === 0 ? (
+            <div className="px-3 py-3 text-[11px] text-zinc-400 italic">
+              Nenhum título encontrado
+            </div>
+          ) : (
+            <div className="py-1">
+              {outline.map((item, i) => (
+                <button
+                  key={i}
+                  className="w-full text-left px-2 py-1 text-[11px] text-zinc-600 hover:bg-zinc-100 rounded truncate block"
+                  style={{ paddingLeft: `${8 + (item.level - 1) * 12}px` }}
+                  title={item.text}
+                >
+                  <span className={item.level === 1 ? "font-semibold" : item.level === 2 ? "font-medium" : ""}>
+                    {item.text}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </ScrollArea>
       )}
     </div>

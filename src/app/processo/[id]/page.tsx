@@ -398,7 +398,7 @@ export default function ProcessoPage({
             </div>{/* close viewer area */}
 
             {/* Index sidebar — direita */}
-            {hasPreview && <IndexSidebar />}
+            {hasPreview && <IndexSidebar gdocsId={selectedGDocsId ?? undefined} />}
           </div>{/* close flex container (sidebar + viewer) */}
         </div>
 
