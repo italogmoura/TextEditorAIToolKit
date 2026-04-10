@@ -27,9 +27,22 @@ export function AiBar({
   const [showSlash, setShowSlash] = useState(false);
   const [selectedCmd, setSelectedCmd] = useState(0);
   const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; path: string }>>([]);
+  const [quotedText, setQuotedText] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { messages, isLoading, sendMessage } = useChatStore();
+
+  // Detect paste of text (from Google Docs selection)
+  function handlePaste(e: React.ClipboardEvent) {
+    const pasted = e.clipboardData.getData("text/plain").trim();
+    // Only treat as quote if it's multi-word and the textarea is empty or has a command
+    if (pasted && pasted.length > 20 && (!value || value.startsWith("/"))) {
+      e.preventDefault();
+      setQuotedText(pasted);
+      setFocused(true);
+      textareaRef.current?.focus();
+    }
+  }
 
   const suggestions = value.startsWith("/")
     ? SLASH_COMMANDS.filter((c) => c.command.startsWith(value))
@@ -53,12 +66,14 @@ export function AiBar({
       if (cmd) { onSlashCommand(cmd.command); setValue(""); return; }
     }
 
-    const fileContext = attachedFiles.length > 0
-      ? `\n\n[Arquivos de referência: ${attachedFiles.map((f) => f.name).join(", ")}]`
-      : "";
-    sendMessage(processNumber, value.trim() + fileContext, gdocsId);
+    const parts: string[] = [];
+    if (quotedText) parts.push(`<texto_selecionado>\n${quotedText}\n</texto_selecionado>`);
+    if (attachedFiles.length > 0) parts.push(`[Arquivos de referência: ${attachedFiles.map((f) => f.name).join(", ")}]`);
+    parts.push(value.trim());
+    sendMessage(processNumber, parts.join("\n\n"), gdocsId);
     setValue("");
     setAttachedFiles([]);
+    setQuotedText(null);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -201,6 +216,31 @@ export function AiBar({
             padding: focused || attachedFiles.length > 0 ? "12px" : "6px 6px 6px 16px",
           }}
         >
+          {/* Quoted text from paste */}
+          {quotedText && (
+            <div className="mb-2 relative">
+              <div
+                className="text-[11px] text-zinc-500 leading-relaxed max-h-20 overflow-y-auto"
+                style={{
+                  borderLeft: "3px solid #7c3aed",
+                  paddingLeft: "10px",
+                  background: "rgba(124,58,237,0.04)",
+                  borderRadius: "0 8px 8px 0",
+                  padding: "8px 28px 8px 10px",
+                }}
+              >
+                <span className="text-[9px] font-semibold uppercase text-violet-400 block mb-0.5">Texto selecionado</span>
+                {quotedText.length > 200 ? quotedText.substring(0, 200) + "..." : quotedText}
+              </div>
+              <button
+                className="absolute top-1 right-1 text-zinc-300 hover:text-red-500 transition-colors"
+                onClick={() => setQuotedText(null)}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
           {/* Attached file tags */}
           {attachedFiles.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2">
@@ -231,6 +271,7 @@ export function AiBar({
               onFocus={() => setFocused(true)}
               onBlur={() => { if (!value) setTimeout(() => setFocused(false), 150); }}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               placeholder={focused ? "Edite este documento com IA..." : "Diga à IA o que precisa ser alterado..."}
               rows={focused ? 3 : 1}
               className="flex-1 text-sm bg-transparent outline-none placeholder:text-zinc-300 resize-none leading-relaxed"
