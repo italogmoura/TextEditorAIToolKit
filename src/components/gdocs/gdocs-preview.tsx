@@ -15,9 +15,16 @@ export function GDocsPreview({
 }) {
   const [iframeError, setIframeError] = useState(false);
   const appliedMargins = useRef<Set<string>>(new Set());
-  const anchor = headingAnchor ? `#heading=${headingAnchor}` : "";
-  const embedUrl = `https://docs.google.com/document/d/${gdocsId}/edit?rm=minimal${anchor}`;
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const baseUrl = `https://docs.google.com/document/d/${gdocsId}/edit?rm=minimal`;
   const editUrl = `https://docs.google.com/document/d/${gdocsId}/edit`;
+
+  // Navega ao heading alterando só o hash do iframe — sem reload, só scroll
+  useEffect(() => {
+    if (headingAnchor && iframeRef.current) {
+      iframeRef.current.src = `${baseUrl}#heading=${headingAnchor}`;
+    }
+  }, [headingAnchor, baseUrl]);
 
   useEffect(() => {
     if (appliedMargins.current.has(gdocsId)) return;
@@ -46,7 +53,8 @@ export function GDocsPreview({
   if (expanded) {
     return (
       <iframe
-        src={embedUrl}
+        ref={iframeRef}
+        src={baseUrl}
         className="fixed inset-0 z-50 w-full h-full border-0"
         title="Google Docs Editor"
         onError={() => setIframeError(true)}
@@ -71,17 +79,22 @@ export function GDocsPreview({
 
   // Largura fixa próxima da página A4/Letter do Google Docs + pequena margem do canvas
   const iframeFixedWidth = 840;
-  const scale = containerSize.w > 0 ? Math.min(1, containerSize.w / iframeFixedWidth) : 0.7;
+  const needsScale = containerSize.w > 0 && containerSize.w < iframeFixedWidth;
+  const scale = needsScale ? containerSize.w / iframeFixedWidth : 1;
 
   return (
     <div ref={containerRef} className="absolute inset-0 overflow-hidden">
       <iframe
-        src={embedUrl}
+        ref={iframeRef}
+        src={baseUrl}
         className="border-0 origin-top-left"
-        style={{
+        style={needsScale ? {
           width: iframeFixedWidth,
-          height: containerSize.h > 0 ? containerSize.h / scale : "100%",
+          height: containerSize.h / scale,
           transform: `scale(${scale})`,
+        } : {
+          width: "100%",
+          height: "100%",
         }}
         title="Google Docs Editor"
         onError={() => setIframeError(true)}

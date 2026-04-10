@@ -17,20 +17,20 @@ export function PdfViewer({
   const src = highlightPage ? `${pdfUrl}#page=${highlightPage}` : pdfUrl;
 
   return (
-    <div className="flex flex-col h-full min-h-0 min-w-0 bg-zinc-100">
-      {/* Toolbar mínima — o viewer nativo já tem seus próprios controles */}
+    <div className="relative h-full min-h-0 min-w-0">
       {onClose && (
-        <div className="flex items-center justify-end px-3 py-1.5 bg-white border-b">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+        <Button
+          variant="secondary"
+          size="icon"
+          className="absolute top-2 right-2 z-10 h-6 w-6 opacity-60 hover:opacity-100 shadow-sm"
+          onClick={onClose}
+        >
+          <X className="h-3 w-3" />
+        </Button>
       )}
-
-      {/* Viewer nativo do browser — streaming real, suporta PDFs de qualquer tamanho */}
       <iframe
         src={src}
-        className="flex-1 w-full border-0"
+        className="w-full h-full border-0"
         title="PDF Viewer"
       />
     </div>

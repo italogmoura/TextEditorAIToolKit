@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  FileText, FolderOpen, BookOpen, ChevronDown, ChevronRight, GripVertical, PanelLeft, PanelRight, RefreshCw,
+  FileText, FolderOpen, BookOpen, ChevronDown, ChevronRight, GripVertical, PanelLeft, PanelRight, RefreshCw, ChevronsLeft, ChevronsRight,
 } from "lucide-react";
 import type { ProcessDocument } from "@/lib/types/process";
 
@@ -114,7 +114,8 @@ export function FilesSidebar({ documents, onSelectDocument }: SidebarProps) {
           title="Arquivos do processo"
         >
           {open ? <ChevronDown className="h-3 w-3" /> : <PanelLeft className="h-3 w-3" />}
-          {open && "Arquivos"}
+          {open && <span className="flex-1">Arquivos</span>}
+          {open && <ChevronsLeft className="h-3 w-3 text-zinc-400 hover:text-zinc-600" />}
         </button>
 
         {open && (
@@ -247,11 +248,11 @@ export function IndexSidebar({
           onClick={handleToggle}
           title="Índice do documento"
         >
-          {open ? <ChevronDown className="h-3 w-3" /> : <PanelRight className="h-3 w-3" />}
-          {open && "Índice"}
+          {open ? <ChevronsRight className="h-3 w-3 text-zinc-400 hover:text-zinc-600" /> : <PanelRight className="h-3 w-3" />}
+          {open && <span className="flex-1">Índice</span>}
           {open && (
             <RefreshCw
-              className={`h-2.5 w-2.5 ml-auto text-zinc-400 hover:text-zinc-600 transition-colors ${loading ? "animate-spin" : ""}`}
+              className={`h-2.5 w-2.5 text-zinc-400 hover:text-zinc-600 transition-colors ${loading ? "animate-spin" : ""}`}
               onClick={(e) => { e.stopPropagation(); handleRefresh(); }}
             />
           )}
