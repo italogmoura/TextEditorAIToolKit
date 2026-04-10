@@ -217,6 +217,24 @@ export async function insertTextAtEnd(docId: string, text: string) {
   });
 }
 
+export async function exportAsHtml(docId: string): Promise<string> {
+  const drive = await getDriveClient();
+  const response = await drive.files.export(
+    { fileId: docId, mimeType: "text/html" },
+    { responseType: "text" }
+  );
+  return response.data as string;
+}
+
+export async function getDocumentModifiedTime(docId: string): Promise<string> {
+  const drive = await getDriveClient();
+  const file = await drive.files.get({
+    fileId: docId,
+    fields: "modifiedTime",
+  });
+  return file.data.modifiedTime!;
+}
+
 export async function exportAsDocx(docId: string, outputPath: string) {
   const drive = await getDriveClient();
   const fs = await import("fs");

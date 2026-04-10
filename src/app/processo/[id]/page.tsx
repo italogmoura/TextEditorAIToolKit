@@ -14,10 +14,12 @@ import type { ProcessDocument } from "@/lib/types/process";
 import { AgentPanel } from "@/components/agents/agent-panel";
 import { AiBar } from "@/components/chat/ai-bar";
 import { TerminalPanel } from "@/components/terminal/terminal-panel";
-import { GDocsPreview, GDocsActions } from "@/components/gdocs/gdocs-preview";
+import { GDocsActions } from "@/components/gdocs/gdocs-preview";
 import { GDocsStatus } from "@/components/gdocs/gdocs-status";
+import { DocumentEditor } from "@/components/gdocs/document-editor";
 import { PdfViewer } from "@/components/pdf/pdf-viewer";
 import { useSocket } from "@/hooks/use-socket";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import { useGDocs } from "@/hooks/use-gdocs";
 import { CommandPalette } from "@/components/command-palette/command-palette";
 import { useProcessStore } from "@/stores/process-store";
@@ -88,6 +90,7 @@ export default function ProcessoPage({
     }
   }, [selectedFile, processNumber]);
   const { connected, terminalLines, clearTerminal } = useSocket();
+  const { isOnline } = useOnlineStatus(connected);
   const { createDocument, openInGoogleDocs, isCreating } = useGDocs();
   const { processes, fetchProcesses } = useProcessStore();
 
@@ -210,7 +213,7 @@ export default function ProcessoPage({
           </Link>
           <span className="text-[11px] font-mono font-semibold truncate">{processNumber}</span>
           <span className="text-[10px] text-muted-foreground shrink-0">{pdfs.length} PDFs, {pecas.length} peças</span>
-          <GDocsStatus isLocked={false} isConnected={connected} />
+          <GDocsStatus isLocked={false} isConnected={isOnline} />
           <div className="flex items-center gap-0.5 ml-auto shrink-0">
             {rightPanelVisible && (
               <>
@@ -399,9 +402,7 @@ export default function ProcessoPage({
                     )}
                   </div>
                 ) : selectedGDocsId ? (
-                  <div className="flex-1 relative overflow-hidden min-h-0 min-w-0">
-                    <GDocsPreview gdocsId={selectedGDocsId} headingAnchor={headingAnchor} />
-                  </div>
+                  <DocumentEditor gdocsId={selectedGDocsId} isOnline={isOnline} headingAnchor={headingAnchor} />
                 ) : !selectedPdfPath ? (
                   <ScrollArea className="flex-1">
                     <div className="p-4 space-y-4">
