@@ -21,7 +21,7 @@ import { useSocket } from "@/hooks/use-socket";
 import { useGDocs } from "@/hooks/use-gdocs";
 import { CommandPalette } from "@/components/command-palette/command-palette";
 import { useProcessStore } from "@/stores/process-store";
-import { DocSidebar } from "@/components/layout/doc-sidebar";
+import { FilesSidebar, IndexSidebar } from "@/components/layout/doc-sidebar";
 
 interface ProcessData {
   processNumber: string;
@@ -170,9 +170,9 @@ export default function ProcessoPage({
 
           {/* Content area with optional sidebar */}
           <div className="flex-1 flex overflow-hidden">
-            {/* Doc sidebar — visible when a document is open */}
+            {/* Files sidebar — esquerda */}
             {hasPreview && data && (
-              <DocSidebar
+              <FilesSidebar
                 documents={data.documents}
                 onSelectDocument={(doc) => {
                   if (doc.type === "pdf") {
@@ -394,6 +394,9 @@ export default function ProcessoPage({
             />
           )}
             </div>{/* close viewer area */}
+
+            {/* Index sidebar — direita */}
+            {hasPreview && <IndexSidebar />}
           </div>{/* close flex container (sidebar + viewer) */}
         </div>
 
