@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { ProcessDocument } from "@/lib/types/process";
-import { ChatPanel } from "@/components/chat/chat-panel";
 import { AgentPanel } from "@/components/agents/agent-panel";
 import { AiBar } from "@/components/chat/ai-bar";
 import { TerminalPanel } from "@/components/terminal/terminal-panel";
@@ -22,8 +21,6 @@ import { useSocket } from "@/hooks/use-socket";
 import { useGDocs } from "@/hooks/use-gdocs";
 import { CommandPalette } from "@/components/command-palette/command-palette";
 import { useProcessStore } from "@/stores/process-store";
-import { FloatingPanel } from "@/components/layout/floating-panel";
-import { PinOff, MessageSquare } from "lucide-react";
 
 interface ProcessData {
   processNumber: string;
@@ -38,7 +35,6 @@ export default function ProcessoPage({
   const { id } = use(params);
   const processNumber = decodeURIComponent(id);
   const [data, setData] = useState<ProcessData | null>(null);
-  const [activeTab, setActiveTab] = useState<"chat" | "agents">("chat");
   const [selectedGDocsId, setSelectedGDocsId] = useState<string | null>(null);
   const [selectedPdfPath, setSelectedPdfPath] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<ProcessDocument | null>(null);
@@ -46,10 +42,6 @@ export default function ProcessoPage({
   const { connected, terminalLines, clearTerminal } = useSocket();
   const { createDocument, openInGoogleDocs, isCreating } = useGDocs();
   const { processes, fetchProcesses } = useProcessStore();
-
-  // ---- Panel mode: docked (lateral) or floating ----
-  const [panelMode, setPanelMode] = useState<"docked" | "floating">("docked");
-  const [showFloatingPanel, setShowFloatingPanel] = useState(true);
 
   // ---- Resizable panel ----
   const [leftPanelPercent, setLeftPanelPercent] = useState(60);
@@ -120,45 +112,6 @@ export default function ProcessoPage({
 
   const hasPreview = selectedPdfPath || selectedGDocsId || selectedFile;
 
-  // AI panel content (shared between docked and floating modes)
-  const aiPanelContent = (
-    <>
-      <div className="flex border-b shrink-0">
-        <button
-          className={`flex-1 px-4 py-2 text-xs font-medium ${
-            activeTab === "chat" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"
-          }`}
-          onClick={() => setActiveTab("chat")}
-        >
-          Chat AI
-        </button>
-        <button
-          className={`flex-1 px-4 py-2 text-xs font-medium ${
-            activeTab === "agents" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"
-          }`}
-          onClick={() => setActiveTab("agents")}
-        >
-          Agentes
-        </button>
-      </div>
-      <div className="flex-1 overflow-hidden">
-        {activeTab === "chat" ? (
-          <ChatPanel
-            processNumber={processNumber}
-            gdocsId={selectedGDocsId ?? undefined}
-            onSlashCommand={handleSlashCommand}
-          />
-        ) : (
-          <AgentPanel
-            processNumber={processNumber}
-            gdocsId={selectedGDocsId ?? undefined}
-          />
-        )}
-      </div>
-      <TerminalPanel lines={terminalLines} onClear={clearTerminal} />
-    </>
-  );
-
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       <Header>
@@ -193,7 +146,7 @@ export default function ProcessoPage({
         {/* ===== LEFT PANEL ===== */}
         <div
           className="flex flex-col overflow-hidden relative"
-          style={{ width: panelMode === "floating" ? "100%" : `${leftPanelPercent}%` }}
+          style={{ width: `${leftPanelPercent}%` }}
         >
 
           {/* Content area */}
@@ -402,85 +355,24 @@ export default function ProcessoPage({
           />
         </div>
 
-        {/* ===== DOCKED MODE: drag handle + right panel ===== */}
-        {panelMode === "docked" && (
-          <>
-            <div
-              className="w-1 bg-border hover:bg-primary/30 cursor-col-resize shrink-0 transition-colors active:bg-primary/50"
-              onMouseDown={handleMouseDown}
-            />
-            <div
-              className="flex flex-col overflow-hidden"
-              style={{ width: `${100 - leftPanelPercent}%` }}
-            >
-              <div className="flex items-center justify-between border-b shrink-0 pr-1">
-                <div className="flex flex-1">
-                  <button
-                    className={`flex-1 px-4 py-2 text-xs font-medium ${
-                      activeTab === "chat" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"
-                    }`}
-                    onClick={() => setActiveTab("chat")}
-                  >
-                    Chat AI
-                  </button>
-                  <button
-                    className={`flex-1 px-4 py-2 text-xs font-medium ${
-                      activeTab === "agents" ? "border-b-2 border-primary text-primary" : "text-muted-foreground"
-                    }`}
-                    onClick={() => setActiveTab("agents")}
-                  >
-                    Agentes
-                  </button>
-                </div>
-                <Button
-                  variant="ghost" size="icon" className="h-6 w-6"
-                  onClick={() => { setPanelMode("floating"); setShowFloatingPanel(true); }}
-                  title="Destacar como janela flutuante"
-                >
-                  <PinOff className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <div className="flex-1 overflow-hidden">
-                {activeTab === "chat" ? (
-                  <ChatPanel processNumber={processNumber} gdocsId={selectedGDocsId ?? undefined} onSlashCommand={handleSlashCommand} />
-                ) : (
-                  <AgentPanel processNumber={processNumber} gdocsId={selectedGDocsId ?? undefined} />
-                )}
-              </div>
-              <TerminalPanel lines={terminalLines} onClear={clearTerminal} />
-            </div>
-          </>
-        )}
+        {/* ===== RIGHT PANEL: Agentes + Terminal ===== */}
+        <div
+          className="w-1 bg-border hover:bg-primary/30 cursor-col-resize shrink-0 transition-colors active:bg-primary/50"
+          onMouseDown={handleMouseDown}
+        />
+        <div
+          className="flex flex-col overflow-hidden"
+          style={{ width: `${100 - leftPanelPercent}%` }}
+        >
+          <div className="flex items-center border-b shrink-0 px-3 py-1.5">
+            <span className="text-xs font-semibold text-muted-foreground">Agentes</span>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <AgentPanel processNumber={processNumber} gdocsId={selectedGDocsId ?? undefined} />
+          </div>
+          <TerminalPanel lines={terminalLines} onClear={clearTerminal} />
+        </div>
       </div>
-
-      {/* ===== FLOATING MODE: AI Panel as draggable window ===== */}
-      {panelMode === "floating" && (
-        <>
-          {/* FAB to reopen floating panel when closed */}
-          {!showFloatingPanel && (
-            <button
-              className="fixed bottom-6 right-6 z-40 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
-              onClick={() => setShowFloatingPanel(true)}
-              title="Abrir painel AI"
-            >
-              <MessageSquare className="h-5 w-5" />
-            </button>
-          )}
-
-          <FloatingPanel
-            isVisible={showFloatingPanel}
-            title="AI Panel"
-            defaultWidth={420}
-            defaultHeight={520}
-            onClose={() => setShowFloatingPanel(false)}
-            onDock={() => setPanelMode("docked")}
-          >
-            <div className="flex flex-col h-full">
-              {aiPanelContent}
-            </div>
-          </FloatingPanel>
-        </>
-      )}
     </div>
   );
 }
