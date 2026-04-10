@@ -43,7 +43,7 @@ export function DocSidebar({ documents, onSelectDocument, onDragStart }: DocSide
       className="h-full flex flex-col border-r shrink-0 overflow-hidden"
       style={{ width: openSection ? "200px" : "auto", background: "rgba(250,250,250,0.8)" }}
     >
-      {/* Header: Índice */}
+      {/* Índice — header */}
       <button
         className={`w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase border-b shrink-0 transition-colors ${
           openSection === "toc" ? "text-zinc-700 bg-zinc-100" : "text-zinc-400 hover:text-zinc-600"
@@ -54,7 +54,16 @@ export function DocSidebar({ documents, onSelectDocument, onDragStart }: DocSide
         Índice
       </button>
 
-      {/* Header: Arquivos */}
+      {/* Índice — conteúdo (entre os dois headers) */}
+      {openSection === "toc" && (
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="px-3 py-2 text-[11px] text-zinc-400 italic">
+            Navegue pelo sumário no Google Docs
+          </div>
+        </ScrollArea>
+      )}
+
+      {/* Arquivos — header */}
       <button
         className={`w-full flex items-center gap-1.5 px-3 py-2 text-[10px] font-semibold uppercase border-b shrink-0 transition-colors ${
           openSection === "files" ? "text-zinc-700 bg-zinc-100" : "text-zinc-400 hover:text-zinc-600"
@@ -65,17 +74,9 @@ export function DocSidebar({ documents, onSelectDocument, onDragStart }: DocSide
         Arquivos
       </button>
 
-      {/* Expanded content — below both headers */}
-      {openSection === "toc" && (
-        <ScrollArea className="flex-1">
-          <div className="px-3 py-2 text-[11px] text-zinc-400 italic">
-            Navegue pelo sumário no Google Docs
-          </div>
-        </ScrollArea>
-      )}
-
+      {/* Arquivos — conteúdo (abaixo do header Arquivos) */}
       {openSection === "files" && (
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="space-y-0.5 px-1 py-1">
             {allFiles.map((doc) => (
               <div
