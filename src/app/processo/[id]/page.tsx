@@ -36,10 +36,41 @@ export default function ProcessoPage({
   const { id } = use(params);
   const processNumber = decodeURIComponent(id);
   const [data, setData] = useState<ProcessData | null>(null);
-  const [selectedGDocsId, setSelectedGDocsId] = useState<string | null>(null);
-  const [selectedPdfPath, setSelectedPdfPath] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<ProcessDocument | null>(null);
+  const [selectedGDocsId, setSelectedGDocsId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(`doc-gdocs-${processNumber}`);
+  });
+  const [selectedPdfPath, setSelectedPdfPath] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(`doc-pdf-${processNumber}`);
+  });
+  const [selectedFile, setSelectedFile] = useState<ProcessDocument | null>(() => {
+    if (typeof window === "undefined") return null;
+    const stored = localStorage.getItem(`doc-file-${processNumber}`);
+    return stored ? JSON.parse(stored) : null;
+  });
   const [filePreviewContent, setFilePreviewContent] = useState<string | null>(null);
+
+  // Persist selected document to localStorage
+  useEffect(() => {
+    if (selectedGDocsId) {
+      localStorage.setItem(`doc-gdocs-${processNumber}`, selectedGDocsId);
+      localStorage.removeItem(`doc-pdf-${processNumber}`);
+      localStorage.removeItem(`doc-file-${processNumber}`);
+    } else if (selectedPdfPath) {
+      localStorage.setItem(`doc-pdf-${processNumber}`, selectedPdfPath);
+      localStorage.removeItem(`doc-gdocs-${processNumber}`);
+      localStorage.removeItem(`doc-file-${processNumber}`);
+    } else if (selectedFile) {
+      localStorage.setItem(`doc-file-${processNumber}`, JSON.stringify(selectedFile));
+      localStorage.removeItem(`doc-gdocs-${processNumber}`);
+      localStorage.removeItem(`doc-pdf-${processNumber}`);
+    } else {
+      localStorage.removeItem(`doc-gdocs-${processNumber}`);
+      localStorage.removeItem(`doc-pdf-${processNumber}`);
+      localStorage.removeItem(`doc-file-${processNumber}`);
+    }
+  }, [selectedGDocsId, selectedPdfPath, selectedFile, processNumber]);
   const { connected, terminalLines, clearTerminal } = useSocket();
   const { createDocument, openInGoogleDocs, isCreating } = useGDocs();
   const { processes, fetchProcesses } = useProcessStore();
@@ -84,7 +115,14 @@ export default function ProcessoPage({
       .then((res) => res.json())
       .then(setData);
     fetchProcesses();
-  }, [processNumber, fetchProcesses]);
+    // Load .md content if restored from localStorage
+    if (selectedFile && selectedFile.name.endsWith(".md") && !filePreviewContent) {
+      fetch(`/api/file?path=${encodeURIComponent(selectedFile.path)}`)
+        .then((r) => r.json())
+        .then((d) => setFilePreviewContent(d.content ?? "Erro"))
+        .catch(() => setFilePreviewContent("Erro ao carregar"));
+    }
+  }, [processNumber, fetchProcesses]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pdfs = data?.documents.filter((d) => d.type === "pdf") ?? [];
   const pecas = data?.documents.filter((d) => d.type === "peca") ?? [];
