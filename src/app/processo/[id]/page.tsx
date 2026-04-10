@@ -13,6 +13,7 @@ import Link from "next/link";
 import type { ProcessDocument } from "@/lib/types/process";
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { AgentPanel } from "@/components/agents/agent-panel";
+import { AiBar } from "@/components/chat/ai-bar";
 import { TerminalPanel } from "@/components/terminal/terminal-panel";
 import { GDocsPreview } from "@/components/gdocs/gdocs-preview";
 import { GDocsStatus } from "@/components/gdocs/gdocs-status";
@@ -191,7 +192,7 @@ export default function ProcessoPage({
       <div className="flex-1 flex overflow-hidden" ref={containerRef}>
         {/* ===== LEFT PANEL ===== */}
         <div
-          className="flex flex-col overflow-hidden"
+          className="flex flex-col overflow-hidden relative"
           style={{ width: panelMode === "floating" ? "100%" : `${leftPanelPercent}%` }}
         >
 
@@ -392,6 +393,13 @@ export default function ProcessoPage({
               </div>
             </ScrollArea>
           )}
+
+          {/* AI Bar — fixed at bottom of editor, Tiptap style */}
+          <AiBar
+            processNumber={processNumber}
+            gdocsId={selectedGDocsId ?? undefined}
+            onSlashCommand={handleSlashCommand}
+          />
         </div>
 
         {/* ===== DOCKED MODE: drag handle + right panel ===== */}
