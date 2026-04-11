@@ -55,7 +55,7 @@ export async function executeAgent(config: AgentRunConfig): Promise<AgentRunResu
     });
 
     const processDir = path.join(CLAUDE_DOCS_PATH, "processos", config.processNumber);
-    const processInfo = `\n\n[Processo: ${config.processNumber}. Pasta: processos/${config.processNumber}/. Peças em: processos/${config.processNumber}/pecas/. Autos/PDFs em: processos/${config.processNumber}/docs/ e raiz. Scripts em: scripts/.]`;
+    const processInfo = `\n\n[Processo: ${config.processNumber}. Pasta absoluta: ${processDir}/. Peças (minutas .md/.docx): ${processDir}/pecas/. Índices: ${processDir}/docs/. PDFs dos autos: diretamente em ${processDir}/ (arquivos .PDF na raiz da pasta do processo). Scripts: ${CLAUDE_DOCS_PATH}/scripts/.]`;
 
     const prompt = config.prompt
       ? assemblePrompt(context, config.prompt + processInfo)

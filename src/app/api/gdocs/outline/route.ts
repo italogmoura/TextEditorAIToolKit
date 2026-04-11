@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDocumentContent } from "@/lib/gdocs/client";
 
+export const dynamic = "force-dynamic";
+
 export interface OutlineItem {
   level: number;
   text: string;
@@ -29,7 +31,8 @@ export async function GET(request: NextRequest) {
     for (const element of content) {
       if (!element.paragraph) continue;
 
-      const style = element.paragraph.paragraphStyle?.namedStyleType;
+      const pStyle = element.paragraph.paragraphStyle;
+      const style = pStyle?.namedStyleType;
       if (!style) continue;
 
       let level: number | undefined;
@@ -38,6 +41,9 @@ export async function GET(request: NextRequest) {
         level = parseInt(style.replace("HEADING_", ""), 10);
         if (isNaN(level)) continue;
       } else if (style in styleToLevel) {
+        // TITLE/SUBTITLE com indentação de primeira linha são parágrafos
+        // normais formatados erroneamente (ex: conversão .docx) — ignorar
+        if (pStyle?.indentFirstLine?.magnitude) continue;
         level = styleToLevel[style];
       } else {
         continue;
@@ -50,7 +56,7 @@ export async function GET(request: NextRequest) {
 
       if (!text) continue;
 
-      const headingId = element.paragraph.paragraphStyle?.headingId;
+      const headingId = pStyle?.headingId;
 
       outline.push({
         level,
@@ -60,7 +66,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ outline });
+    return NextResponse.json({ outline }, {
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+    });
   } catch (error) {
     return NextResponse.json({ error: `${error}` }, { status: 500 });
   }

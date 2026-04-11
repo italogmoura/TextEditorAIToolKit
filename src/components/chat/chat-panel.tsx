@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Terminal } from "lucide-react";
 import { useChatStore } from "@/stores/chat-store";
 import { Message } from "./message";
 import { ChatInput } from "./input";
+import { TerminalView } from "./terminal-view";
 
 export function ChatPanel({
   processNumber,
@@ -18,6 +19,7 @@ export function ChatPanel({
 }) {
   const { messages, isLoading, sendMessage } = useChatStore();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [showTerminal, setShowTerminal] = useState(false);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -27,6 +29,17 @@ export function ChatPanel({
 
   function handleSend(message: string) {
     sendMessage(processNumber, message, gdocsId);
+  }
+
+  // Verificar se há rawOutput para mostrar o botão terminal
+  const hasRawOutput = messages.some((m) => m.rawOutput);
+
+  if (showTerminal) {
+    return (
+      <div className="flex flex-col h-full">
+        <TerminalView onClose={() => setShowTerminal(false)} />
+      </div>
+    );
   }
 
   return (
@@ -62,6 +75,19 @@ export function ChatPanel({
           )}
         </div>
       </ScrollArea>
+
+      <div className="flex items-center gap-1 px-3 pb-1">
+        {hasRawOutput && (
+          <button
+            onClick={() => setShowTerminal(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition-colors"
+            title="Ver saida do Claude Code CLI"
+          >
+            <Terminal className="h-3 w-3" />
+            Terminal
+          </button>
+        )}
+      </div>
 
       <ChatInput
         onSend={handleSend}

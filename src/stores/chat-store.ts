@@ -6,6 +6,9 @@ export interface ChatMessage {
   content: string;
   agentName?: string;
   timestamp: string;
+  rawOutput?: string;
+  editApplied?: boolean;
+  editError?: string;
 }
 
 interface ChatStore {
@@ -43,6 +46,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       addMessage({
         role: "assistant",
         content: data.response ?? data.error ?? "Sem resposta",
+        rawOutput: data.rawOutput,
+        editApplied: data.editApplied,
+        editError: data.editError,
       });
     } catch {
       addMessage({ role: "system", content: "Erro ao comunicar com o servidor" });

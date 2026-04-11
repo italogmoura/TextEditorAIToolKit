@@ -303,7 +303,7 @@ export default function ProcessoPage({
             )}
 
             {/* Viewer area — split horizontal: PDF (condicional) | GDocs (sempre visível) */}
-            <div className="flex-1 overflow-hidden relative min-h-0 min-w-0 flex flex-col" ref={viewerRef}>
+            <div className="flex-1 overflow-hidden relative min-h-0 min-w-0 flex flex-col pb-2" ref={viewerRef}>
               <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
                 {/* PDF Pane — aparece à esquerda quando um PDF está selecionado */}
                 {selectedPdfPath && (selectedGDocsId || selectedFile) && (

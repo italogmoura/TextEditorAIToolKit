@@ -48,10 +48,13 @@ export async function ensureFreshContent(docId: string): Promise<DocumentContent
  */
 export function buildBatchUpdateRequests(
   edits: Array<{
-    action: "replace" | "insert_after" | "delete";
+    action: "replace" | "insert_after" | "delete" | "style";
     startIndex: number;
     endIndex: number;
     newText?: string;
+    paragraphStyle?: Record<string, unknown>;
+    textStyle?: Record<string, unknown>;
+    fields?: string;
   }>
 ): Array<Record<string, unknown>> {
   // Ordenar de trás para frente (índices maiores primeiro)
@@ -61,13 +64,16 @@ export function buildBatchUpdateRequests(
 
   for (const edit of sorted) {
     switch (edit.action) {
-      case "replace":
-        // Primeiro deletar, depois inserir
-        requests.push({
-          deleteContentRange: {
-            range: { startIndex: edit.startIndex, endIndex: edit.endIndex },
-          },
-        });
+      case "replace": {
+        // Deletar conteúdo do parágrafo (sem o \n terminador) e inserir novo texto
+        const replaceEnd = edit.endIndex - 1; // excluir \n terminador
+        if (replaceEnd > edit.startIndex) {
+          requests.push({
+            deleteContentRange: {
+              range: { startIndex: edit.startIndex, endIndex: replaceEnd },
+            },
+          });
+        }
         if (edit.newText) {
           requests.push({
             insertText: {
@@ -77,24 +83,60 @@ export function buildBatchUpdateRequests(
           });
         }
         break;
+      }
 
       case "insert_after":
         if (edit.newText) {
           requests.push({
             insertText: {
-              location: { index: edit.endIndex },
+              location: { index: edit.endIndex - 1 },
               text: "\n" + edit.newText,
             },
           });
         }
         break;
 
-      case "delete":
-        requests.push({
-          deleteContentRange: {
-            range: { startIndex: edit.startIndex, endIndex: edit.endIndex },
-          },
-        });
+      case "delete": {
+        // Para deletar um parágrafo inteiro: incluir o \n que o precede (se não for o primeiro)
+        // para não deixar linha vazia. Não incluir o \n final do segmento (API proíbe).
+        const delStart = edit.startIndex > 1 ? edit.startIndex - 1 : edit.startIndex;
+        const delEnd = edit.endIndex - 1;
+        if (delEnd > delStart) {
+          requests.push({
+            deleteContentRange: {
+              range: { startIndex: delStart, endIndex: delEnd },
+            },
+          });
+        }
+        break;
+      }
+
+      case "style":
+        if (edit.paragraphStyle && edit.fields) {
+          requests.push({
+            updateParagraphStyle: {
+              range: { startIndex: edit.startIndex, endIndex: edit.endIndex },
+              paragraphStyle: edit.paragraphStyle,
+              fields: edit.fields,
+            },
+          });
+        }
+        if (edit.textStyle && edit.fields) {
+          // Separar fields de texto dos de parágrafo
+          const textFields = edit.fields
+            .split(",")
+            .filter((f) => ["bold", "italic", "underline", "strikethrough", "fontSize", "weightedFontFamily", "foregroundColor", "backgroundColor"].includes(f.trim()))
+            .join(",");
+          if (textFields) {
+            requests.push({
+              updateTextStyle: {
+                range: { startIndex: edit.startIndex, endIndex: edit.endIndex },
+                textStyle: edit.textStyle,
+                fields: textFields,
+              },
+            });
+          }
+        }
         break;
     }
   }

@@ -185,15 +185,19 @@ export function IndexSidebar({
   const [outline, setOutline] = useState<OutlineItem[]>([]);
   const [loading, setLoading] = useState(false);
   const loadedDocIdRef = useRef<string | null>(null);
+  const lastFetchRef = useRef<number>(0);
   const { width, handleMouseDown } = useResizable("sidebar-index-width", 200, 140, 350, "right");
 
   useEffect(() => { setOpen(loadState("sidebar-index-open", false)); }, []);
 
   const fetchOutline = useCallback(async (docId: string, force = false) => {
     if (!force && loadedDocIdRef.current === docId) return;
+    lastFetchRef.current = Date.now();
     setLoading(true);
     try {
-      const res = await fetch(`/api/gdocs/outline?docId=${docId}`);
+      const res = await fetch(`/api/gdocs/outline?docId=${docId}&_t=${Date.now()}`, {
+        cache: "no-store",
+      });
       const data = await res.json();
       setOutline(data.outline ?? []);
       loadedDocIdRef.current = docId;
@@ -211,11 +215,23 @@ export function IndexSidebar({
     }
   }, [open, gdocsId, fetchOutline]);
 
-  // Auto-refresh a cada 30s enquanto o painel está aberto
+  // Auto-refresh a cada 15s enquanto o painel está aberto
   useEffect(() => {
     if (!open || !gdocsId) return;
-    const interval = setInterval(() => fetchOutline(gdocsId, true), 30_000);
+    const interval = setInterval(() => fetchOutline(gdocsId, true), 15_000);
     return () => clearInterval(interval);
+  }, [open, gdocsId, fetchOutline]);
+
+  // Refresh ao voltar do iframe (window recupera focus quando usuário clica fora do iframe)
+  useEffect(() => {
+    if (!open || !gdocsId) return;
+    const handleFocus = () => {
+      // Throttle: só refrescar se último fetch foi há mais de 5s
+      if (Date.now() - lastFetchRef.current < 5_000) return;
+      fetchOutline(gdocsId, true);
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [open, gdocsId, fetchOutline]);
 
   function handleToggle() {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Sparkles, X, Check, Bot, Loader2, FileText } from "lucide-react";
+import { Send, Sparkles, X, Check, Bot, Loader2, FileText, FileCheck, AlertTriangle, Trash2 } from "lucide-react";
 import { useChatStore } from "@/stores/chat-store";
 
 const SLASH_COMMANDS = [
@@ -30,7 +30,7 @@ export function AiBar({
   const [quotedText, setQuotedText] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { messages, isLoading, sendMessage } = useChatStore();
+  const { messages, isLoading, sendMessage, clearMessages } = useChatStore();
 
   // Monitor clipboard: when user copies text (even inside GDocs iframe),
   // detect it by polling clipboard on window focus
@@ -110,6 +110,11 @@ export function AiBar({
     if (attachedFiles.length > 0) displayParts.push(`📁 ${attachedFiles.map((f) => f.name).join(", ")}`);
     displayParts.push(value.trim());
 
+    // Limpar input imediatamente
+    setValue("");
+    setAttachedFiles([]);
+    setQuotedText(null);
+
     // Add compact display message to chat, but send full prompt to API
     const { addMessage } = useChatStore.getState();
     addMessage({ role: "user", content: displayParts.join("\n") });
@@ -123,15 +128,18 @@ export function AiBar({
         body: JSON.stringify({ processNumber, message: fullParts.join("\n\n"), gdocsId }),
       });
       const data = await res.json();
-      addMessage({ role: "assistant", content: data.response ?? data.error ?? "Sem resposta" });
+      addMessage({
+        role: "assistant",
+        content: data.response ?? data.error ?? "Sem resposta",
+        rawOutput: data.rawOutput,
+        editApplied: data.editApplied,
+        editError: data.editError,
+      });
     } catch {
       addMessage({ role: "system", content: "Erro ao comunicar com o servidor" });
     } finally {
       useChatStore.setState({ isLoading: false });
     }
-    setValue("");
-    setAttachedFiles([]);
-    setQuotedText(null);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -155,22 +163,30 @@ export function AiBar({
       {expanded && hasMessages && (
         <div
           className="w-full max-w-2xl mx-auto mb-1 pointer-events-auto"
-          style={{ maxHeight: "50vh", overflowY: "auto" }}
+          style={{
+            borderRadius: "16px 16px 0 0",
+            background: "rgba(255,255,255,0.97)",
+            backdropFilter: "blur(20px)",
+            boxShadow: "0 -8px 32px rgba(0,0,0,0.10), 0 -2px 8px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.05)",
+          }}
         >
           <div
             className="space-y-2 p-3"
-            style={{
-              borderRadius: "16px 16px 0 0",
-              background: "rgba(255,255,255,0.97)",
-              backdropFilter: "blur(20px)",
-              boxShadow: "0 -8px 32px rgba(0,0,0,0.12), 0 -2px 8px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04)",
-            }}
+            style={{ maxHeight: "30vh", overflowY: "auto" }}
           >
-            {/* Close button */}
-            <div className="flex justify-end">
+            {/* Close / Clear buttons */}
+            <div className="flex justify-end gap-1">
+              <button
+                className="text-zinc-300 hover:text-red-400 transition-colors"
+                onClick={() => { clearMessages(); setExpanded(false); }}
+                title="Limpar conversa"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
               <button
                 className="text-zinc-300 hover:text-zinc-500 transition-colors"
                 onClick={() => setExpanded(false)}
+                title="Minimizar"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -185,18 +201,32 @@ export function AiBar({
                     <Bot className="h-2.5 w-2.5 text-white" />
                   </div>
                 )}
-                <div
-                  className="max-w-[85%] text-[12px] leading-relaxed"
-                  style={{
-                    borderRadius: msg.role === "user" ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
-                    padding: "8px 12px",
-                    background: msg.role === "user"
-                      ? "linear-gradient(135deg, #7c3aed, #6d28d9)"
-                      : msg.role === "system" ? "#fef2f2" : "#f4f4f5",
-                    color: msg.role === "user" ? "white" : msg.role === "system" ? "#b91c1c" : "#3f3f46",
-                  }}
-                >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                <div className="max-w-[85%] space-y-1">
+                  <div
+                    className="text-[12px] leading-relaxed"
+                    style={{
+                      borderRadius: msg.role === "user" ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
+                      padding: "8px 12px",
+                      background: msg.role === "user"
+                        ? "linear-gradient(135deg, #7c3aed, #6d28d9)"
+                        : msg.role === "system" ? "#fef2f2" : "#f4f4f5",
+                      color: msg.role === "user" ? "white" : msg.role === "system" ? "#b91c1c" : "#3f3f46",
+                    }}
+                  >
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  </div>
+                  {msg.editApplied && (
+                    <div className="flex items-center gap-1 pl-1 text-[10px] text-emerald-600">
+                      <FileCheck className="h-3 w-3" />
+                      <span>Documento editado</span>
+                    </div>
+                  )}
+                  {msg.editError && (
+                    <div className="flex items-center gap-1 pl-1 text-[10px] text-amber-600">
+                      <AlertTriangle className="h-3 w-3" />
+                      <span>{msg.editError}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

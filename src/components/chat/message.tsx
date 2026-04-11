@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, User, Check, X } from "lucide-react";
+import { Bot, User, Check, X, FileCheck, AlertTriangle } from "lucide-react";
 import type { ChatMessage } from "@/stores/chat-store";
 
 export function Message({
@@ -72,6 +72,20 @@ export function Message({
             >
               <X className="h-3 w-3" />
             </button>
+          </div>
+        )}
+
+        {/* Indicador de edição aplicada ao Google Docs */}
+        {message.editApplied && (
+          <div className="flex items-center gap-1 pl-1 text-[11px] text-emerald-600">
+            <FileCheck className="h-3 w-3" />
+            <span>Documento editado</span>
+          </div>
+        )}
+        {message.editError && (
+          <div className="flex items-center gap-1 pl-1 text-[11px] text-amber-600">
+            <AlertTriangle className="h-3 w-3" />
+            <span>{message.editError}</span>
           </div>
         )}
 
